@@ -7,7 +7,8 @@ import { getTeamsForAuction } from "@/config/teams";
 import { loadPlayers } from "@/lib/auction/players.fn";
 import { useAuctionState } from "@/lib/auction/useAuctionState";
 import { downloadAuctionResults } from "@/lib/auction/excel";
-import { PlayerCard } from "@/components/auction/PlayerCard";
+import { PlayerPortrait } from "@/components/auction/PlayerPortrait";
+import { PlayerDetailsHeader } from "@/components/auction/PlayerDetailsHeader";
 import { LiveBar } from "@/components/auction/LiveBar";
 import { TeamCard } from "@/components/auction/TeamCard";
 import { TeamModal } from "@/components/auction/TeamModal";
@@ -181,14 +182,17 @@ function AuctionFloor({
           </div>
         </header>
 
-        <LiveBar player={currentPlayer} currentBid={Number(soldPrice) || null} />
+        <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3 xl:items-start">
+          {/* LEFT — player portrait */}
+          <section className="xl:sticky xl:top-4">
+            <PlayerPortrait player={currentPlayer} />
+          </section>
 
-        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1.1fr_1fr]">
-          {/* LEFT */}
+          {/* MIDDLE — details, bidding, player list */}
           <section className="space-y-4">
-            <PlayerCard player={currentPlayer} />
+            <PlayerDetailsHeader player={currentPlayer} />
+            <LiveBar player={currentPlayer} currentBid={Number(soldPrice) || null} />
 
-            {/* Controls */}
             <div className="glass-strong rounded-2xl p-5">
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <Field label="Sold Price">
@@ -277,13 +281,13 @@ function AuctionFloor({
             </div>
           </section>
 
-          {/* RIGHT */}
-          <section>
+          {/* RIGHT — teams */}
+          <section className="xl:sticky xl:top-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-display text-lg font-bold">Teams</h2>
               <span className="text-xs text-muted-foreground">{teams.length} squads</span>
             </div>
-            <motion.div layout className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2">
+            <motion.div layout className="grid max-h-[calc(100vh-10rem)] grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-1">
               {teams.map((t) => {
                 const s = teamStats.get(t.name) ?? { bought: 0, spent: 0, players: [] };
                 return (

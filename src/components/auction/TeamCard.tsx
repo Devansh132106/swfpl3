@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import type { Team } from "@/lib/auction/types";
+import { formatPurse } from "@/lib/utils";
 
 interface Props {
   team: Team;
@@ -10,7 +11,7 @@ interface Props {
 
 export function TeamCard({ team, bought, spent, onClick }: Props) {
   const remaining = Math.max(team.maxPlayers - bought, 0);
-  const budgetLeft = Math.max(team.budget - spent, 0);
+  const purseLeft = Math.max(team.budget - spent, 0);
   return (
     <motion.button
       onClick={onClick}
@@ -21,9 +22,14 @@ export function TeamCard({ team, bought, spent, onClick }: Props) {
     >
       <div className="absolute inset-0 bg-gradient-to-br from-[oklch(0.7_0.2_150)]/0 via-transparent to-[oklch(0.5_0.2_280)]/0 opacity-0 transition-opacity group-hover:opacity-30" />
       <div className="relative flex items-start gap-3">
-        <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-[oklch(0.7_0.2_150)] to-[oklch(0.5_0.2_200)]">
+        <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/5 shadow-inner">
           {team.logoUrl ? (
-            <img src={team.logoUrl} alt={team.name} className="h-full w-full object-cover" />
+            <img
+              src={team.logoUrl}
+              alt={`${team.name} flag`}
+              className="h-full w-full object-cover"
+              loading="lazy"
+            />
           ) : (
             <span className="text-xl">🛡️</span>
           )}
@@ -38,7 +44,7 @@ export function TeamCard({ team, bought, spent, onClick }: Props) {
       <div className="relative mt-3 grid grid-cols-3 gap-1.5 text-center">
         <Pill label="Slots" value={remaining} />
         <Pill label="Bought" value={bought} />
-        <Pill label="Budget" value={`₹${(budgetLeft / 1000).toFixed(0)}k`} />
+        <Pill label="Purse" value={formatPurse(purseLeft)} />
       </div>
     </motion.button>
   );

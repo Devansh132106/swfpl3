@@ -1,20 +1,8 @@
-import type { AuctionType } from "@/config/sheets";
-import type { Team } from "@/lib/auction/types";
-
-const OPEN_BUDGET = 50_000;
-
-function flagUrl(countryCode: string): string {
+const OPEN_BUDGET = 5e4;
+function flagUrl(countryCode) {
   return `https://flagcdn.com/w80/${countryCode}.png`;
 }
-
-function team(
-  id: string,
-  name: string,
-  captain: string,
-  mentor: string,
-  countryCode: string,
-  budget = OPEN_BUDGET,
-): Team {
+function team(id, name, captain, mentor, countryCode, budget = OPEN_BUDGET) {
   return {
     id,
     name,
@@ -22,11 +10,10 @@ function team(
     mentor,
     maxPlayers: 15,
     logoUrl: flagUrl(countryCode),
-    budget,
+    budget
   };
 }
-
-export const TEAMS_BY_AUCTION: Partial<Record<AuctionType, Team[]>> = {
+const TEAMS_BY_AUCTION = {
   open: [
     team("spain", "Spain", "Ishayu Bose", "Abhinav Mangrati", "es"),
     team("brazil", "Brazil", "Siddhant Singh", "Siddhartha Ghosh", "br"),
@@ -35,10 +22,12 @@ export const TEAMS_BY_AUCTION: Partial<Record<AuctionType, Team[]>> = {
     team("portugal", "Portugal", "Praadyun dasgupta", "Krish", "pt"),
     team("netherlands", "Netherlands", "Ronit Das", "Abir Roy", "nl"),
     team("germany", "Germany", "Piyush Kumar", "Jonty", "de"),
-    team("england", "England", "Ojas Tiwari", "Aniruddha", "gb-eng"),
-  ],
+    team("england", "England", "Ojas Tiwari", "Aniruddha", "gb-eng")
+  ]
 };
-
-export function getTeamsForAuction(type: AuctionType): Team[] {
+function getTeamsForAuction(type) {
   return TEAMS_BY_AUCTION[type] ?? [];
 }
+export {
+  getTeamsForAuction as g
+};

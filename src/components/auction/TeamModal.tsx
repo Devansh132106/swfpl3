@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import type { Player, Team } from "@/lib/auction/types";
+import { formatPurse } from "@/lib/utils";
 
 interface Props {
   open: boolean;
@@ -25,9 +26,9 @@ export function TeamModal({ open, team, players, spent, onClose }: Props) {
             className="fixed right-0 top-0 z-50 flex h-full w-full max-w-xl flex-col glass-strong"
           >
             <header className="flex items-center gap-4 border-b border-white/10 p-6">
-              <div className="grid h-16 w-16 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-[oklch(0.7_0.2_150)] to-[oklch(0.5_0.2_200)]">
+              <div className="grid h-16 w-16 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/5">
                 {team.logoUrl ? (
-                  <img src={team.logoUrl} alt={team.name} className="h-full w-full object-cover" />
+                  <img src={team.logoUrl} alt={`${team.name} flag`} className="h-full w-full object-cover" />
                 ) : (
                   <span className="text-2xl">🛡️</span>
                 )}
@@ -85,7 +86,7 @@ export function TeamModal({ open, team, players, spent, onClose }: Props) {
             <footer className="grid grid-cols-3 gap-2 border-t border-white/10 p-6">
               <Stat label="Total Players" value={players.length} />
               <Stat label="Spent" value={`₹${spent.toLocaleString()}`} />
-              <Stat label="Budget Left" value={`₹${Math.max(team.budget - spent, 0).toLocaleString()}`} />
+              <Stat label="Purse Left" value={formatPurse(Math.max(team.budget - spent, 0))} />
             </footer>
           </motion.aside>
         </>

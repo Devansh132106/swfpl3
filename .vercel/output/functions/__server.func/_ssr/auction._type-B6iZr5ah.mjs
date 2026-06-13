@@ -1,8 +1,8 @@
 import { j as jsxRuntimeExports, r as reactExports } from "../_libs/react.mjs";
 import { L as Link } from "../_libs/tanstack__react-router.mjs";
 import { u as useQuery } from "../_libs/tanstack__react-query.mjs";
-import { R as Route$1, S as SHEETS, A as AUCTION_META, l as loadPlayers } from "./router-CtFus6V2.mjs";
-import { g as getTeamsForAuction } from "./teams-CiWAH07F.mjs";
+import { R as Route$1, S as SHEETS, A as AUCTION_META, l as loadPlayers } from "./router-Cr7W4Qta.mjs";
+import { g as getTeamsForAuction } from "./teams-BDuzl9NL.mjs";
 import { u as utils, w as writeFileSync } from "../_libs/xlsx.mjs";
 import { e as extractDriveFileId, a as driveImageProxyUrl, d as driveImageDirectUrls } from "./drivePhoto-BlqciLZ2.mjs";
 import { F as FloatingParticles } from "./FloatingParticles-BsaonRbR.mjs";
@@ -21,7 +21,7 @@ import "async_hooks";
 import "stream";
 import "../_libs/isbot.mjs";
 import "../_libs/tanstack__query-core.mjs";
-import "./server-BJGnq3t5.mjs";
+import "./server-CzT3Q6f0.mjs";
 import "node:async_hooks";
 import "../_libs/h3-v2.mjs";
 import "../_libs/rou3.mjs";
@@ -272,51 +272,67 @@ const roleColor = {
   Defence: "from-[oklch(0.65_0.2_240)] to-[oklch(0.5_0.2_260)]",
   Goalkeeper: "from-[oklch(0.78_0.18_90)] to-[oklch(0.65_0.2_70)]"
 };
-function PlayerCard({ player }) {
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "relative", children: /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatePresence, { mode: "wait", children: player ? /* @__PURE__ */ jsxRuntimeExports.jsxs(
+function PlayerPortrait({ player }) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "relative h-full min-h-[320px] lg:min-h-[calc(100vh-12rem)]", children: /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatePresence, { mode: "wait", children: player ? /* @__PURE__ */ jsxRuntimeExports.jsx(
     motion.div,
     {
-      initial: { opacity: 0, scale: 0.92, y: 20 },
-      animate: { opacity: 1, scale: 1, y: 0 },
-      exit: { opacity: 0, scale: 0.95, y: -20 },
-      transition: { duration: 0.45, type: "spring" },
-      className: "relative overflow-hidden rounded-3xl glass-strong p-6 animate-border-glow",
+      initial: { opacity: 0, scale: 0.95 },
+      animate: { opacity: 1, scale: 1 },
+      exit: { opacity: 0, scale: 0.98 },
+      transition: { duration: 0.4, type: "spring" },
+      className: "flex h-full flex-col overflow-hidden rounded-3xl glass-strong animate-border-glow",
+      children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        motion.div,
+        {
+          animate: { y: [0, -5, 0] },
+          transition: { duration: 4, repeat: Infinity, ease: "easeInOut" },
+          className: "relative min-h-0 flex-1 overflow-hidden bg-gradient-to-b from-white/10 to-white/5",
+          children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(PlayerPhoto, { photoUrl: player.photoUrl, name: player.name }, player.id),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "span",
+              {
+                className: `inline-flex rounded-full bg-gradient-to-r ${roleColor[player.role] ?? roleColor.Midfield} px-3 py-1 text-xs font-bold uppercase tracking-wider shadow-lg`,
+                children: player.role
+              }
+            ) })
+          ]
+        }
+      )
+    },
+    player.id
+  ) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-full min-h-[320px] place-items-center rounded-3xl glass-strong p-8 text-center text-muted-foreground", children: "No player to display." }) }) });
+}
+function PlayerDetailsHeader({ player }) {
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatePresence, { mode: "wait", children: player ? /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    motion.div,
+    {
+      initial: { opacity: 0, y: 12 },
+      animate: { opacity: 1, y: 0 },
+      exit: { opacity: 0, y: -8 },
+      className: "glass-strong rounded-2xl p-5 text-center",
       children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          motion.div,
-          {
-            animate: { y: [0, -6, 0] },
-            transition: { duration: 4, repeat: Infinity, ease: "easeInOut" },
-            className: "relative mx-auto aspect-[3/4] max-w-sm overflow-hidden rounded-2xl bg-gradient-to-b from-white/10 to-white/5",
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(PlayerPhoto, { photoUrl: player.photoUrl, name: player.name }, player.id),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `inline-flex rounded-full bg-gradient-to-r ${roleColor[player.role] ?? roleColor.Midfield} px-3 py-1 text-xs font-bold uppercase tracking-wider shadow-lg`, children: player.role }) })
-            ]
-          }
-        ),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-5 text-center", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "font-display text-3xl font-black tracking-wide", children: player.name }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-3 inline-flex items-center gap-4 rounded-full glass px-5 py-2", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs uppercase tracking-widest text-muted-foreground", children: "Base Price" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-display text-xl font-bold text-[oklch(0.85_0.17_85)]", children: [
-              "₹",
-              player.basePrice.toLocaleString()
-            ] })
-          ] }),
-          player.status === "SOLD" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-3 text-sm", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "rounded bg-[oklch(0.7_0.2_150)]/20 px-2 py-0.5 text-[oklch(0.85_0.18_150)]", children: "SOLD" }),
-            " ",
-            "to ",
-            /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: player.team }),
-            " · ₹",
-            player.soldPrice?.toLocaleString()
-          ] }),
-          player.status === "UNSOLD" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-3 text-sm", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "rounded bg-destructive/20 px-2 py-0.5 text-destructive", children: "UNSOLD" }) })
-        ] })
+        /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "font-display text-3xl font-black tracking-wide", children: player.name }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-3 inline-flex items-center gap-4 rounded-full glass px-5 py-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs uppercase tracking-widest text-muted-foreground", children: "Base Price" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-display text-xl font-bold text-[oklch(0.85_0.17_85)]", children: [
+            "₹",
+            player.basePrice.toLocaleString()
+          ] })
+        ] }),
+        player.status === "SOLD" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-3 text-sm", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "rounded bg-[oklch(0.7_0.2_150)]/20 px-2 py-0.5 text-[oklch(0.85_0.18_150)]", children: "SOLD" }),
+          " ",
+          "to ",
+          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: player.team }),
+          " · ₹",
+          player.soldPrice?.toLocaleString()
+        ] }),
+        player.status === "UNSOLD" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-3 text-sm", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "rounded bg-destructive/20 px-2 py-0.5 text-destructive", children: "UNSOLD" }) })
       ]
     },
     player.id
-  ) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid place-items-center rounded-3xl glass-strong p-16 text-center text-muted-foreground", children: "No player to display." }) }) });
+  ) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "rounded-2xl glass p-6 text-center text-muted-foreground", children: "Select a player" }) });
 }
 function LiveBar({ player, currentBid }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "rounded-2xl glass-strong overflow-hidden", children: [
@@ -347,9 +363,17 @@ function Cell({ label, value, highlight }) {
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `truncate font-display text-base font-bold ${highlight ? "neon-text text-[oklch(0.9_0.15_150)]" : ""}`, children: value })
   ] });
 }
+function formatPurse(amount) {
+  if (amount >= 1e3) {
+    const k = Math.round(amount / 1e3 * 10) / 10;
+    const text = Number.isInteger(k) ? String(k) : k.toFixed(1);
+    return `₹${text}k`;
+  }
+  return `₹${amount.toLocaleString()}`;
+}
 function TeamCard({ team, bought, spent, onClick }) {
   const remaining = Math.max(team.maxPlayers - bought, 0);
-  const budgetLeft = Math.max(team.budget - spent, 0);
+  const purseLeft = Math.max(team.budget - spent, 0);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(
     motion.button,
     {
@@ -361,7 +385,15 @@ function TeamCard({ team, bought, spent, onClick }) {
       children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute inset-0 bg-gradient-to-br from-[oklch(0.7_0.2_150)]/0 via-transparent to-[oklch(0.5_0.2_280)]/0 opacity-0 transition-opacity group-hover:opacity-30" }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative flex items-start gap-3", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-[oklch(0.7_0.2_150)] to-[oklch(0.5_0.2_200)]", children: team.logoUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: team.logoUrl, alt: team.name, className: "h-full w-full object-cover" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xl", children: "🛡️" }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/5 shadow-inner", children: team.logoUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "img",
+            {
+              src: team.logoUrl,
+              alt: `${team.name} flag`,
+              className: "h-full w-full object-cover",
+              loading: "lazy"
+            }
+          ) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xl", children: "🛡️" }) }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1 min-w-0", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-display text-sm font-bold truncate", children: team.name }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-[11px] text-muted-foreground truncate", children: [
@@ -375,7 +407,7 @@ function TeamCard({ team, bought, spent, onClick }) {
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative mt-3 grid grid-cols-3 gap-1.5 text-center", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(Pill, { label: "Slots", value: remaining }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(Pill, { label: "Bought", value: bought }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Pill, { label: "Budget", value: `₹${(budgetLeft / 1e3).toFixed(0)}k` })
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Pill, { label: "Purse", value: formatPurse(purseLeft) })
         ] })
       ]
     }
@@ -409,7 +441,7 @@ function TeamModal({ open, team, players, spent, onClose }) {
         className: "fixed right-0 top-0 z-50 flex h-full w-full max-w-xl flex-col glass-strong",
         children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "flex items-center gap-4 border-b border-white/10 p-6", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-16 w-16 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-[oklch(0.7_0.2_150)] to-[oklch(0.5_0.2_200)]", children: team.logoUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: team.logoUrl, alt: team.name, className: "h-full w-full object-cover" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-2xl", children: "🛡️" }) }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-16 w-16 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/5", children: team.logoUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: team.logoUrl, alt: `${team.name} flag`, className: "h-full w-full object-cover" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-2xl", children: "🛡️" }) }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "font-display text-2xl font-bold", children: team.name }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-muted-foreground", children: [
@@ -459,7 +491,7 @@ function TeamModal({ open, team, players, spent, onClose }) {
           /* @__PURE__ */ jsxRuntimeExports.jsxs("footer", { className: "grid grid-cols-3 gap-2 border-t border-white/10 p-6", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx(Stat, { label: "Total Players", value: players.length }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(Stat, { label: "Spent", value: `₹${spent.toLocaleString()}` }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Stat, { label: "Budget Left", value: `₹${Math.max(team.budget - spent, 0).toLocaleString()}` })
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Stat, { label: "Purse Left", value: formatPurse(Math.max(team.budget - spent, 0)) })
           ] })
         ]
       }
@@ -588,10 +620,11 @@ function AuctionFloor({
           }, children: "Reset" })
         ] })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(LiveBar, { player: currentPlayer, currentBid: Number(soldPrice) || null }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1.1fr_1fr]", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3 xl:items-start", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "xl:sticky xl:top-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(PlayerPortrait, { player: currentPlayer }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "space-y-4", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(PlayerCard, { player: currentPlayer }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(PlayerDetailsHeader, { player: currentPlayer }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(LiveBar, { player: currentPlayer, currentBid: Number(soldPrice) || null }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass-strong rounded-2xl p-5", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-1 gap-3 md:grid-cols-2", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx(Field, { label: "Sold Price", children: /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "number", value: soldPrice, onChange: (e) => setSoldPrice(e.target.value), placeholder: "0", className: "w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]" }) }),
@@ -637,7 +670,7 @@ function AuctionFloor({
             ] }) })
           ] })
         ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "xl:sticky xl:top-4", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mb-3 flex items-center justify-between", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "font-display text-lg font-bold", children: "Teams" }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-muted-foreground", children: [
@@ -645,7 +678,7 @@ function AuctionFloor({
               " squads"
             ] })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(motion.div, { layout: true, className: "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2", children: teams.map((t) => {
+          /* @__PURE__ */ jsxRuntimeExports.jsx(motion.div, { layout: true, className: "grid max-h-[calc(100vh-10rem)] grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-1", children: teams.map((t) => {
             const s = teamStats.get(t.name) ?? {
               bought: 0,
               spent: 0
