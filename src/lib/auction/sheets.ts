@@ -42,6 +42,15 @@ function pick(row: Record<string, string>, ...keys: string[]): string {
   return "";
 }
 
+function normalizeRole(role: string): string {
+  const r = role.trim();
+  if (!r) return "Midfield";
+  if (/^goal\s*keeper$/i.test(r)) return "Goalkeeper";
+  if (/^defence$/i.test(r)) return "Defence";
+  if (/^defense$/i.test(r)) return "Defense";
+  return r;
+}
+
 export async function fetchPlayers(url: string): Promise<Player[]> {
   const rows = await fetchCsv(url);
   return rows
@@ -61,7 +70,7 @@ export async function fetchPlayers(url: string): Promise<Player[]> {
       return {
         id: `${name}-${i}`,
         name,
-        role: pick(r, "role", "position") || "Midfield",
+        role: normalizeRole(pick(r, "role", "position")),
         basePrice: num(pick(r, "base price", "base", "starting price", "min price")),
         photoUrl: normalizePhotoUrl(photoRaw),
         jerseyName: pick(r, "jersey name"),

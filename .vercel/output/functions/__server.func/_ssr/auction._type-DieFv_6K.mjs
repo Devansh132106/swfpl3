@@ -1,7 +1,7 @@
 import { j as jsxRuntimeExports, r as reactExports } from "../_libs/react.mjs";
 import { L as Link } from "../_libs/tanstack__react-router.mjs";
 import { u as useQuery } from "../_libs/tanstack__react-query.mjs";
-import { R as Route$1, S as SHEETS, A as AUCTION_META, l as loadPlayers } from "./router-mtd1doPk.mjs";
+import { R as Route$1, S as SHEETS, A as AUCTION_META, l as loadPlayers } from "./router-D77xyIWV.mjs";
 import { u as utils, w as writeFileSync } from "../_libs/xlsx.mjs";
 import { e as extractDriveFileId, a as driveImageProxyUrl, d as driveImageDirectUrls } from "./drivePhoto-BlqciLZ2.mjs";
 import { F as FloatingParticles } from "./FloatingParticles-BsaonRbR.mjs";
@@ -20,7 +20,7 @@ import "async_hooks";
 import "stream";
 import "../_libs/isbot.mjs";
 import "../_libs/tanstack__query-core.mjs";
-import "./server-Bzn04SQx.mjs";
+import "./server-1Qods2ut.mjs";
 import "node:async_hooks";
 import "../_libs/h3-v2.mjs";
 import "../_libs/rou3.mjs";
@@ -615,7 +615,7 @@ function AuctionFloor({
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-2xl p-4", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-wrap items-center gap-2", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: search, onChange: (e) => setSearch(e.target.value), placeholder: "Search player…", className: "flex-1 min-w-[160px] rounded-lg bg-white/5 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("select", { value: roleFilter, onChange: (e) => setRoleFilter(e.target.value), className: "rounded-lg bg-white/5 px-3 py-2 text-sm outline-none", children: ["All", "Attack", "Midfield", "Defense", "Defence", "Goalkeeper"].map((r) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: r, children: r }, r)) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("select", { value: roleFilter, onChange: (e) => setRoleFilter(e.target.value), className: "rounded-lg bg-white/5 px-3 py-2 text-sm outline-none", children: ["All", "Attack", "Midfield", "Defense", "Defence", "Goalkeeper", "Goal Keeper"].map((r) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: r, children: r }, r)) }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("select", { value: statusFilter, onChange: (e) => setStatusFilter(e.target.value), className: "rounded-lg bg-white/5 px-3 py-2 text-sm outline-none", children: ["All", "Remaining", "Sold", "Unsold"].map((s) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: s, children: s }, s)) })
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-3 max-h-64 overflow-y-auto", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-1 gap-1.5 md:grid-cols-2", children: [

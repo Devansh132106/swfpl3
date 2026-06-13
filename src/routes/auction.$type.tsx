@@ -2,7 +2,7 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { AUCTION_META, SHEETS, type AuctionType } from "@/config/sheets";
+import { AUCTION_META, AUCTION_TYPES, SHEETS, type AuctionType } from "@/config/sheets";
 import { TEAMS } from "@/config/teams";
 import { loadPlayers } from "@/lib/auction/players.fn";
 import { useAuctionState } from "@/lib/auction/useAuctionState";
@@ -14,7 +14,7 @@ import { TeamModal } from "@/components/auction/TeamModal";
 import { FloatingParticles } from "@/components/auction/FloatingParticles";
 import type { Player, Team } from "@/lib/auction/types";
 
-const VALID: AuctionType[] = ["open", "veteran", "female"];
+const VALID = AUCTION_TYPES;
 
 export const Route = createFileRoute("/auction/$type")({
   beforeLoad: ({ params }) => {
@@ -244,7 +244,7 @@ function AuctionFloor({
                 />
                 <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
                   className="rounded-lg bg-white/5 px-3 py-2 text-sm outline-none">
-                  {["All","Attack","Midfield","Defense","Defence","Goalkeeper"].map((r) => <option key={r} value={r}>{r}</option>)}
+                  {["All","Attack","Midfield","Defense","Defence","Goalkeeper","Goal Keeper"].map((r) => <option key={r} value={r}>{r}</option>)}
                 </select>
                 <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
                   className="rounded-lg bg-white/5 px-3 py-2 text-sm outline-none">

@@ -3,7 +3,7 @@ import { Q as QueryClientProvider } from "../_libs/tanstack__react-query.mjs";
 import { c as createRouter, a as createRootRouteWithContext, u as useRouter, L as Link, O as Outlet, H as HeadContent, S as Scripts, b as createFileRoute, l as lazyRouteComponent } from "../_libs/tanstack__react-router.mjs";
 import { S as notFound } from "../_libs/tanstack__router-core.mjs";
 import { r as reactExports, j as jsxRuntimeExports } from "../_libs/react.mjs";
-import { c as createServerFn, T as TSS_SERVER_FUNCTION, g as getServerFnById } from "./server-Bzn04SQx.mjs";
+import { c as createServerFn, T as TSS_SERVER_FUNCTION, g as getServerFnById } from "./server-1Qods2ut.mjs";
 import { d as driveImageDirectUrls } from "./drivePhoto-BlqciLZ2.mjs";
 import { o as objectType, s as stringType } from "../_libs/zod.mjs";
 import "../_libs/react-dom.mjs";
@@ -22,7 +22,7 @@ import "node:async_hooks";
 import "../_libs/h3-v2.mjs";
 import "../_libs/rou3.mjs";
 import "../_libs/srvx.mjs";
-const appCss = "/assets/styles-DGrj0nK5.css";
+const appCss = "/assets/styles-DDSgyZE-.css";
 function reportLovableError(error, context = {}) {
   if (typeof window === "undefined") return;
   window.__lovableEvents?.captureException?.(
@@ -109,7 +109,14 @@ const Route$3 = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
       GET: async () => {
-        const paths = ["/", "/auction/open", "/auction/veteran", "/auction/female"];
+        const paths = [
+          "/",
+          "/auction/open",
+          "/auction/veteran",
+          "/auction/female",
+          "/auction/kids-u11",
+          "/auction/kids-u14"
+        ];
         const xml = [
           `<?xml version="1.0" encoding="UTF-8"?>`,
           `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`,
@@ -121,14 +128,14 @@ const Route$3 = createFileRoute("/sitemap.xml")({
     }
   }
 });
-const $$splitComponentImporter$1 = () => import("./index-nimdyJcY.mjs");
+const $$splitComponentImporter$1 = () => import("./index-Crj8FWq7.mjs");
 const Route$2 = createFileRoute("/")({
   head: () => ({
     meta: [{
       title: "SWFPL 6.0 — Live Auction Platform"
     }, {
       name: "description",
-      content: "Run premium football league auctions — Open, Veteran and Female drafts with live team building."
+      content: "Run premium football league auctions — Open, Veteran, Female, and Kids drafts with live team building."
     }, {
       property: "og:title",
       content: "SWFPL 6.0 — Live Auction Platform"
@@ -142,7 +149,9 @@ const Route$2 = createFileRoute("/")({
 const SHEETS = {
   openPlayers: "https://docs.google.com/spreadsheets/d/1w2MCrv-xbqrme26CZh1kKBjRnYRLKQI-26UVBg6a0xA/edit?gid=1475985538#gid=1475985538",
   veteranPlayers: "https://docs.google.com/spreadsheets/d/1w2MCrv-xbqrme26CZh1kKBjRnYRLKQI-26UVBg6a0xA/edit?gid=997517097#gid=997517097",
-  femalePlayers: "https://docs.google.com/spreadsheets/d/1w2MCrv-xbqrme26CZh1kKBjRnYRLKQI-26UVBg6a0xA/edit?gid=232303448#gid=232303448"
+  femalePlayers: "https://docs.google.com/spreadsheets/d/1w2MCrv-xbqrme26CZh1kKBjRnYRLKQI-26UVBg6a0xA/edit?gid=232303448#gid=232303448",
+  kidsU11Players: "https://docs.google.com/spreadsheets/d/1w2MCrv-xbqrme26CZh1kKBjRnYRLKQI-26UVBg6a0xA/edit?gid=2085525280#gid=2085525280",
+  kidsU14Players: "https://docs.google.com/spreadsheets/d/1w2MCrv-xbqrme26CZh1kKBjRnYRLKQI-26UVBg6a0xA/edit?gid=1162699620#gid=1162699620"
 };
 const AUCTION_META = {
   open: {
@@ -162,8 +171,21 @@ const AUCTION_META = {
     subtitle: "Women's championship draft",
     accent: "from-[oklch(0.72_0.18_340)] to-[oklch(0.62_0.22_310)]",
     sheetKey: "femalePlayers"
+  },
+  "kids-u11": {
+    title: "Kids (U11)",
+    subtitle: "11 and under draft",
+    accent: "from-[oklch(0.75_0.18_200)] to-[oklch(0.65_0.22_220)]",
+    sheetKey: "kidsU11Players"
+  },
+  "kids-u14": {
+    title: "Kids (U14)",
+    subtitle: "14 and under draft",
+    accent: "from-[oklch(0.78_0.2_130)] to-[oklch(0.68_0.22_110)]",
+    sheetKey: "kidsU14Players"
   }
 };
+const AUCTION_TYPES = Object.keys(AUCTION_META);
 var createSsrRpc = (functionId) => {
   const url = "/_serverFn/" + functionId;
   const serverFnMeta = { id: functionId };
@@ -183,8 +205,8 @@ const loadPlayers = createServerFn({
 })).handler(createSsrRpc("788cb3f044dc896b914af7d4d5649f1a6496e105be9fe6f6d2c466419caf549f"));
 const $$splitNotFoundComponentImporter = () => import("./auction._type-Cr4sL5to.mjs");
 const $$splitErrorComponentImporter = () => import("./auction._type-D6cfMVTw.mjs");
-const $$splitComponentImporter = () => import("./auction._type-eHMt3BdB.mjs");
-const VALID = ["open", "veteran", "female"];
+const $$splitComponentImporter = () => import("./auction._type-DieFv_6K.mjs");
+const VALID = AUCTION_TYPES;
 const Route$1 = createFileRoute("/auction/$type")({
   beforeLoad: ({
     params

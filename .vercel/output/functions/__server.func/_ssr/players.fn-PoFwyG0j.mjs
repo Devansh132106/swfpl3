@@ -1,4 +1,4 @@
-import { T as TSS_SERVER_FUNCTION, c as createServerFn } from "./server-Bzn04SQx.mjs";
+import { T as TSS_SERVER_FUNCTION, c as createServerFn } from "./server-1Qods2ut.mjs";
 import { P as Papa } from "../_libs/papaparse.mjs";
 import { n as normalizePhotoUrl } from "./drivePhoto-BlqciLZ2.mjs";
 import "../_libs/seroval.mjs";
@@ -64,6 +64,14 @@ function pick(row, ...keys) {
   }
   return "";
 }
+function normalizeRole(role) {
+  const r = role.trim();
+  if (!r) return "Midfield";
+  if (/^goal\s*keeper$/i.test(r)) return "Goalkeeper";
+  if (/^defence$/i.test(r)) return "Defence";
+  if (/^defense$/i.test(r)) return "Defense";
+  return r;
+}
 async function fetchPlayers(url) {
   const rows = await fetchCsv(url);
   return rows.map((r, i) => {
@@ -82,7 +90,7 @@ async function fetchPlayers(url) {
     return {
       id: `${name}-${i}`,
       name,
-      role: pick(r, "role", "position") || "Midfield",
+      role: normalizeRole(pick(r, "role", "position")),
       basePrice: num(pick(r, "base price", "base", "starting price", "min price")),
       photoUrl: normalizePhotoUrl(photoRaw),
       jerseyName: pick(r, "jersey name"),

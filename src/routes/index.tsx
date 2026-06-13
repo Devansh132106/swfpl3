@@ -7,7 +7,7 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "SWFPL 6.0 — Live Auction Platform" },
-      { name: "description", content: "Run premium football league auctions — Open, Veteran and Female drafts with live team building." },
+      { name: "description", content: "Run premium football league auctions — Open, Veteran, Female, and Kids drafts with live team building." },
       { property: "og:title", content: "SWFPL 6.0 — Live Auction Platform" },
       { property: "og:description", content: "Run premium football league auctions live." },
     ],
@@ -19,6 +19,8 @@ const cards: { type: AuctionType; tagline: string }[] = [
   { type: "open", tagline: "Main league draft for every athlete in the open category." },
   { type: "veteran", tagline: "Legends and seasoned pros battle for the squad." },
   { type: "female", tagline: "Women's championship draft — the next icons." },
+  { type: "kids-u11", tagline: "Young stars aged 11 and under — the future begins here." },
+  { type: "kids-u14", tagline: "Rising talent aged 14 and under — build the next generation." },
 ];
 
 function Landing() {
@@ -66,7 +68,7 @@ function Landing() {
             A premium football auction platform — pick a category, run the draft, and let the stadium roar.
           </motion.p>
 
-          <div className="mt-16 grid w-full grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="mt-16 grid w-full grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {cards.map((c, i) => {
               const meta = AUCTION_META[c.type];
               return (

@@ -1,7 +1,7 @@
 import { j as jsxRuntimeExports } from "../_libs/react.mjs";
 import { L as Link } from "../_libs/tanstack__react-router.mjs";
 import { F as FloatingParticles } from "./FloatingParticles-BsaonRbR.mjs";
-import { A as AUCTION_META } from "./router-mtd1doPk.mjs";
+import { A as AUCTION_META } from "./router-D77xyIWV.mjs";
 import "../_libs/seroval.mjs";
 import { m as motion } from "../_libs/framer-motion.mjs";
 import "../_libs/tanstack__router-core.mjs";
@@ -18,7 +18,7 @@ import "stream";
 import "../_libs/isbot.mjs";
 import "../_libs/tanstack__query-core.mjs";
 import "../_libs/tanstack__react-query.mjs";
-import "./server-Bzn04SQx.mjs";
+import "./server-1Qods2ut.mjs";
 import "node:async_hooks";
 import "../_libs/h3-v2.mjs";
 import "../_libs/rou3.mjs";
@@ -36,6 +36,12 @@ const cards = [{
 }, {
   type: "female",
   tagline: "Women's championship draft — the next icons."
+}, {
+  type: "kids-u11",
+  tagline: "Young stars aged 11 and under — the future begins here."
+}, {
+  type: "kids-u14",
+  tagline: "Rising talent aged 14 and under — build the next generation."
 }];
 function Landing() {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "relative min-h-screen overflow-hidden stadium-bg animate-gradient-pan", children: [
@@ -85,7 +91,7 @@ function Landing() {
           delay: 0.3,
           duration: 0.6
         }, className: "mt-5 max-w-2xl text-base text-muted-foreground md:text-lg", children: "A premium football auction platform — pick a category, run the draft, and let the stadium roar." }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-16 grid w-full grid-cols-1 gap-6 md:grid-cols-3", children: cards.map((c, i) => {
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-16 grid w-full grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3", children: cards.map((c, i) => {
           const meta = AUCTION_META[c.type];
           return /* @__PURE__ */ jsxRuntimeExports.jsx(motion.div, { initial: {
             opacity: 0,
