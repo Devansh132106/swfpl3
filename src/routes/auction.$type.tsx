@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { AUCTION_META, AUCTION_TYPES, SHEETS, type AuctionType } from "@/config/sheets";
-import { TEAMS } from "@/config/teams";
+import { getTeamsForAuction } from "@/config/teams";
 import { loadPlayers } from "@/lib/auction/players.fn";
 import { useAuctionState } from "@/lib/auction/useAuctionState";
 import { downloadAuctionResults } from "@/lib/auction/excel";
@@ -26,8 +26,8 @@ export const Route = createFileRoute("/auction/$type")({
     const playersUrl = SHEETS[meta.sheetKey];
     if (!playersUrl) return;
     await context.queryClient.ensureQueryData({
-      queryKey: ["players", type, "v2"],
-      queryFn: () => loadPlayers({ data: { url: playersUrl } }),
+      queryKey: ["players", type, "v3"],
+      queryFn: () => loadPlayers({ data: { url: playersUrl, auctionType: type } }),
       staleTime: 5 * 60_000,
     });
   },
@@ -68,9 +68,11 @@ function AuctionPage() {
 
   const playersUrl = SHEETS[meta.sheetKey];
 
+  const teams = getTeamsForAuction(type);
+
   const playersQ = useQuery({
-    queryKey: ["players", type, "v2"],
-    queryFn: () => loadPlayers({ data: { url: playersUrl } }),
+    queryKey: ["players", type, "v3"],
+    queryFn: () => loadPlayers({ data: { url: playersUrl, auctionType: type } }),
     enabled: !!playersUrl,
     staleTime: 5 * 60_000,
   });
@@ -90,7 +92,7 @@ function AuctionPage() {
       auctionKey={type}
       label={meta.title}
       players={players}
-      teams={TEAMS}
+      teams={teams}
     />
   );
 }

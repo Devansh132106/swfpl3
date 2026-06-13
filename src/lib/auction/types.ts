@@ -22,6 +22,8 @@ export interface Team {
   mentor: string;
   maxPlayers: number;
   logoUrl: string;
+  /** Total points budget for the squad (e.g. 50000). */
+  budget: number;
 }
 
 export interface SaleRecord {

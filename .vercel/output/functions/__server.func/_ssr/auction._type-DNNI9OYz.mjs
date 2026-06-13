@@ -1,7 +1,8 @@
 import { j as jsxRuntimeExports, r as reactExports } from "../_libs/react.mjs";
 import { L as Link } from "../_libs/tanstack__react-router.mjs";
 import { u as useQuery } from "../_libs/tanstack__react-query.mjs";
-import { R as Route$1, S as SHEETS, A as AUCTION_META, l as loadPlayers } from "./router-D77xyIWV.mjs";
+import { R as Route$1, S as SHEETS, A as AUCTION_META, l as loadPlayers } from "./router-CtFus6V2.mjs";
+import { g as getTeamsForAuction } from "./teams-CiWAH07F.mjs";
 import { u as utils, w as writeFileSync } from "../_libs/xlsx.mjs";
 import { e as extractDriveFileId, a as driveImageProxyUrl, d as driveImageDirectUrls } from "./drivePhoto-BlqciLZ2.mjs";
 import { F as FloatingParticles } from "./FloatingParticles-BsaonRbR.mjs";
@@ -20,7 +21,7 @@ import "async_hooks";
 import "stream";
 import "../_libs/isbot.mjs";
 import "../_libs/tanstack__query-core.mjs";
-import "./server-1Qods2ut.mjs";
+import "./server-BJGnq3t5.mjs";
 import "node:async_hooks";
 import "../_libs/h3-v2.mjs";
 import "../_libs/rou3.mjs";
@@ -28,7 +29,6 @@ import "../_libs/srvx.mjs";
 import "../_libs/zod.mjs";
 import "../_libs/motion-dom.mjs";
 import "../_libs/motion-utils.mjs";
-const TEAMS = [];
 const KEY = (auction) => `auction-state-v1:${auction}`;
 function useAuctionState(auction, initialPlayers, teams) {
   const [players, setPlayers] = reactExports.useState(initialPlayers);
@@ -349,6 +349,7 @@ function Cell({ label, value, highlight }) {
 }
 function TeamCard({ team, bought, spent, onClick }) {
   const remaining = Math.max(team.maxPlayers - bought, 0);
+  const budgetLeft = Math.max(team.budget - spent, 0);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(
     motion.button,
     {
@@ -374,7 +375,7 @@ function TeamCard({ team, bought, spent, onClick }) {
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative mt-3 grid grid-cols-3 gap-1.5 text-center", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(Pill, { label: "Slots", value: remaining }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(Pill, { label: "Bought", value: bought }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Pill, { label: "Spent", value: `₹${(spent / 1e3).toFixed(0)}k` })
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Pill, { label: "Budget", value: `₹${(budgetLeft / 1e3).toFixed(0)}k` })
         ] })
       ]
     }
@@ -458,7 +459,7 @@ function TeamModal({ open, team, players, spent, onClose }) {
           /* @__PURE__ */ jsxRuntimeExports.jsxs("footer", { className: "grid grid-cols-3 gap-2 border-t border-white/10 p-6", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx(Stat, { label: "Total Players", value: players.length }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(Stat, { label: "Spent", value: `₹${spent.toLocaleString()}` }),
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Stat, { label: "Remaining Slots", value: Math.max(team.maxPlayers - players.length, 0) })
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Stat, { label: "Budget Left", value: `₹${Math.max(team.budget - spent, 0).toLocaleString()}` })
           ] })
         ]
       }
@@ -477,11 +478,13 @@ function AuctionPage() {
   } = Route$1.useParams();
   const meta = AUCTION_META[type];
   const playersUrl = SHEETS[meta.sheetKey];
+  const teams = getTeamsForAuction(type);
   const playersQ = useQuery({
-    queryKey: ["players", type, "v2"],
+    queryKey: ["players", type, "v3"],
     queryFn: () => loadPlayers({
       data: {
-        url: playersUrl
+        url: playersUrl,
+        auctionType: type
       }
     }),
     enabled: !!playersUrl,
@@ -494,7 +497,7 @@ function AuctionPage() {
   if (players.length === 0) {
     return /* @__PURE__ */ jsxRuntimeExports.jsx(EmptyPlayersScreen, { auctionType: type });
   }
-  return /* @__PURE__ */ jsxRuntimeExports.jsx(AuctionFloor, { auctionKey: type, label: meta.title, players, teams: TEAMS });
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(AuctionFloor, { auctionKey: type, label: meta.title, players, teams });
 }
 function AuctionFloor({
   auctionKey,

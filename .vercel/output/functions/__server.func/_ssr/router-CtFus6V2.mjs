@@ -3,7 +3,7 @@ import { Q as QueryClientProvider } from "../_libs/tanstack__react-query.mjs";
 import { c as createRouter, a as createRootRouteWithContext, u as useRouter, L as Link, O as Outlet, H as HeadContent, S as Scripts, b as createFileRoute, l as lazyRouteComponent } from "../_libs/tanstack__react-router.mjs";
 import { S as notFound } from "../_libs/tanstack__router-core.mjs";
 import { r as reactExports, j as jsxRuntimeExports } from "../_libs/react.mjs";
-import { c as createServerFn, T as TSS_SERVER_FUNCTION, g as getServerFnById } from "./server-1Qods2ut.mjs";
+import { c as createServerFn, T as TSS_SERVER_FUNCTION, g as getServerFnById } from "./server-BJGnq3t5.mjs";
 import { d as driveImageDirectUrls } from "./drivePhoto-BlqciLZ2.mjs";
 import { o as objectType, s as stringType } from "../_libs/zod.mjs";
 import "../_libs/react-dom.mjs";
@@ -128,7 +128,7 @@ const Route$3 = createFileRoute("/sitemap.xml")({
     }
   }
 });
-const $$splitComponentImporter$1 = () => import("./index-Crj8FWq7.mjs");
+const $$splitComponentImporter$1 = () => import("./index-99TTQ8vA.mjs");
 const Route$2 = createFileRoute("/")({
   head: () => ({
     meta: [{
@@ -201,11 +201,12 @@ var createSsrRpc = (functionId) => {
 const loadPlayers = createServerFn({
   method: "GET"
 }).validator(objectType({
-  url: stringType().min(1)
+  url: stringType().min(1),
+  auctionType: stringType().min(1)
 })).handler(createSsrRpc("788cb3f044dc896b914af7d4d5649f1a6496e105be9fe6f6d2c466419caf549f"));
 const $$splitNotFoundComponentImporter = () => import("./auction._type-Cr4sL5to.mjs");
 const $$splitErrorComponentImporter = () => import("./auction._type-D6cfMVTw.mjs");
-const $$splitComponentImporter = () => import("./auction._type-DieFv_6K.mjs");
+const $$splitComponentImporter = () => import("./auction._type-DNNI9OYz.mjs");
 const VALID = AUCTION_TYPES;
 const Route$1 = createFileRoute("/auction/$type")({
   beforeLoad: ({
@@ -222,10 +223,11 @@ const Route$1 = createFileRoute("/auction/$type")({
     const playersUrl = SHEETS[meta.sheetKey];
     if (!playersUrl) return;
     await context.queryClient.ensureQueryData({
-      queryKey: ["players", type, "v2"],
+      queryKey: ["players", type, "v3"],
       queryFn: () => loadPlayers({
         data: {
-          url: playersUrl
+          url: playersUrl,
+          auctionType: type
         }
       }),
       staleTime: 5 * 6e4

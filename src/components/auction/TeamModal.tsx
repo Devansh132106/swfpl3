@@ -85,7 +85,7 @@ export function TeamModal({ open, team, players, spent, onClose }: Props) {
             <footer className="grid grid-cols-3 gap-2 border-t border-white/10 p-6">
               <Stat label="Total Players" value={players.length} />
               <Stat label="Spent" value={`₹${spent.toLocaleString()}`} />
-              <Stat label="Remaining Slots" value={Math.max(team.maxPlayers - players.length, 0)} />
+              <Stat label="Budget Left" value={`₹${Math.max(team.budget - spent, 0).toLocaleString()}`} />
             </footer>
           </motion.aside>
         </>

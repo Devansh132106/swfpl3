@@ -1,19 +1,8 @@
-import type { AuctionType } from "@/config/sheets";
-import type { Team } from "@/lib/auction/types";
-
-const OPEN_BUDGET = 50_000;
-
-function team(
-  id: string,
-  name: string,
-  captain: string,
-  mentor: string,
-  budget = OPEN_BUDGET,
-): Team {
+const OPEN_BUDGET = 5e4;
+function team(id, name, captain, mentor, budget = OPEN_BUDGET) {
   return { id, name, captain, mentor, maxPlayers: 15, logoUrl: "", budget };
 }
-
-export const TEAMS_BY_AUCTION: Partial<Record<AuctionType, Team[]>> = {
+const TEAMS_BY_AUCTION = {
   open: [
     team("spain", "Spain", "Ishayu Bose", "Abhinav Mangrati"),
     team("brazil", "Brazil", "Siddhant Singh", "Siddhartha Ghosh"),
@@ -22,10 +11,12 @@ export const TEAMS_BY_AUCTION: Partial<Record<AuctionType, Team[]>> = {
     team("portugal", "Portugal", "Praadyun dasgupta", "Krish"),
     team("netherlands", "Netherlands", "Ronit Das", "Abir Roy"),
     team("germany", "Germany", "Piyush Kumar", "Jonty"),
-    team("england", "England", "Ojas Tiwari", "Aniruddha"),
-  ],
+    team("england", "England", "Ojas Tiwari", "Aniruddha")
+  ]
 };
-
-export function getTeamsForAuction(type: AuctionType): Team[] {
+function getTeamsForAuction(type) {
   return TEAMS_BY_AUCTION[type] ?? [];
 }
+export {
+  getTeamsForAuction as g
+};
