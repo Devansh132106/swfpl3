@@ -24,15 +24,27 @@ export function useAuctionState(
   // Hydrate from localStorage on mount; re-sync when sheet data arrives
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (!initialPlayers.length) {
+      setHydrated(true);
+      return;
+    }
     try {
       const raw = localStorage.getItem(KEY(auction));
       if (raw) {
         const s = JSON.parse(raw) as PersistedState;
-        const byId = new Map(s.players.map((p) => [p.id, p]));
-        setPlayers(initialPlayers.map((p) => byId.get(p.id) ?? p));
-        setHistory(s.history ?? []);
-        setCurrentIndex(Math.min(s.currentIndex ?? 0, Math.max(initialPlayers.length - 1, 0)));
-        setPaused(!!s.paused);
+        // Drop stale saves from when the sheet parser returned zero rows
+        if (s.players.length === 0) {
+          setPlayers(initialPlayers);
+          setHistory([]);
+          setCurrentIndex(0);
+          setPaused(false);
+        } else {
+          const byId = new Map(s.players.map((p) => [p.id, p]));
+          setPlayers(initialPlayers.map((p) => byId.get(p.id) ?? p));
+          setHistory(s.history ?? []);
+          setCurrentIndex(Math.min(s.currentIndex ?? 0, Math.max(initialPlayers.length - 1, 0)));
+          setPaused(!!s.paused);
+        }
       } else {
         setPlayers(initialPlayers);
       }

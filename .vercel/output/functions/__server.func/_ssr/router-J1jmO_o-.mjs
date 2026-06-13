@@ -1,8 +1,10 @@
 import { b as QueryClient } from "../_libs/tanstack__query-core.mjs";
 import { Q as QueryClientProvider } from "../_libs/tanstack__react-query.mjs";
 import { c as createRouter, a as createRootRouteWithContext, u as useRouter, L as Link, O as Outlet, H as HeadContent, S as Scripts, b as createFileRoute, l as lazyRouteComponent } from "../_libs/tanstack__react-router.mjs";
-import { Q as notFound } from "../_libs/tanstack__router-core.mjs";
+import { S as notFound } from "../_libs/tanstack__router-core.mjs";
 import { r as reactExports, j as jsxRuntimeExports } from "../_libs/react.mjs";
+import { c as createServerFn, T as TSS_SERVER_FUNCTION, g as getServerFnById } from "./server-DAqtlgs9.mjs";
+import { o as objectType, s as stringType } from "../_libs/zod.mjs";
 import "../_libs/react-dom.mjs";
 import "util";
 import "crypto";
@@ -15,7 +17,11 @@ import "../_libs/cookie-es.mjs";
 import "../_libs/seroval.mjs";
 import "../_libs/seroval-plugins.mjs";
 import "node:stream/web";
-const appCss = "/assets/styles-BlbbdWQL.css";
+import "node:async_hooks";
+import "../_libs/h3-v2.mjs";
+import "../_libs/rou3.mjs";
+import "../_libs/srvx.mjs";
+const appCss = "/assets/styles-DGrj0nK5.css";
 function reportLovableError(error, context = {}) {
   if (typeof window === "undefined") return;
   window.__lovableEvents?.captureException?.(
@@ -114,7 +120,7 @@ const Route$2 = createFileRoute("/sitemap.xml")({
     }
   }
 });
-const $$splitComponentImporter$1 = () => import("./index-winEmajx.mjs");
+const $$splitComponentImporter$1 = () => import("./index-BQFjF4Sv.mjs");
 const Route$1 = createFileRoute("/")({
   head: () => ({
     meta: [{
@@ -157,15 +163,50 @@ const AUCTION_META = {
     sheetKey: "femalePlayers"
   }
 };
+var createSsrRpc = (functionId) => {
+  const url = "/_serverFn/" + functionId;
+  const serverFnMeta = { id: functionId };
+  const fn = async (...args) => {
+    return (await getServerFnById(functionId))(...args);
+  };
+  return Object.assign(fn, {
+    url,
+    serverFnMeta,
+    [TSS_SERVER_FUNCTION]: true
+  });
+};
+const loadPlayers = createServerFn({
+  method: "GET"
+}).inputValidator(objectType({
+  url: stringType().min(1)
+})).handler(createSsrRpc("788cb3f044dc896b914af7d4d5649f1a6496e105be9fe6f6d2c466419caf549f"));
 const $$splitNotFoundComponentImporter = () => import("./auction._type-Cr4sL5to.mjs");
 const $$splitErrorComponentImporter = () => import("./auction._type-D6cfMVTw.mjs");
-const $$splitComponentImporter = () => import("./auction._type-CXRKNk45.mjs");
+const $$splitComponentImporter = () => import("./auction._type-DpTYCUWk.mjs");
 const VALID = ["open", "veteran", "female"];
 const Route = createFileRoute("/auction/$type")({
   beforeLoad: ({
     params
   }) => {
     if (!VALID.includes(params.type)) throw notFound();
+  },
+  loader: async ({
+    context,
+    params
+  }) => {
+    const type = params.type;
+    const meta = AUCTION_META[type];
+    const playersUrl = SHEETS[meta.sheetKey];
+    if (!playersUrl) return;
+    await context.queryClient.ensureQueryData({
+      queryKey: ["players", type, "v2"],
+      queryFn: () => loadPlayers({
+        data: {
+          url: playersUrl
+        }
+      }),
+      staleTime: 5 * 6e4
+    });
   },
   head: ({
     params
@@ -227,5 +268,6 @@ export {
   AUCTION_META as A,
   Route as R,
   SHEETS as S,
+  loadPlayers as l,
   router as r
 };

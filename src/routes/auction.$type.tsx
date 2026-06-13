@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { AUCTION_META, SHEETS, type AuctionType } from "@/config/sheets";
 import { TEAMS } from "@/config/teams";
-import { fetchPlayers } from "@/lib/auction/sheets";
+import { loadPlayers } from "@/lib/auction/players.fn";
 import { useAuctionState } from "@/lib/auction/useAuctionState";
 import { downloadAuctionResults } from "@/lib/auction/excel";
 import { PlayerCard } from "@/components/auction/PlayerCard";
@@ -19,6 +19,17 @@ const VALID: AuctionType[] = ["open", "veteran", "female"];
 export const Route = createFileRoute("/auction/$type")({
   beforeLoad: ({ params }) => {
     if (!VALID.includes(params.type as AuctionType)) throw notFound();
+  },
+  loader: async ({ context, params }) => {
+    const type = params.type as AuctionType;
+    const meta = AUCTION_META[type];
+    const playersUrl = SHEETS[meta.sheetKey];
+    if (!playersUrl) return;
+    await context.queryClient.ensureQueryData({
+      queryKey: ["players", type, "v2"],
+      queryFn: () => loadPlayers({ data: { url: playersUrl } }),
+      staleTime: 5 * 60_000,
+    });
   },
   head: ({ params }) => {
     const meta = AUCTION_META[params.type as AuctionType];
@@ -58,8 +69,8 @@ function AuctionPage() {
   const playersUrl = SHEETS[meta.sheetKey];
 
   const playersQ = useQuery({
-    queryKey: ["players", type],
-    queryFn: () => fetchPlayers(playersUrl),
+    queryKey: ["players", type, "v2"],
+    queryFn: () => loadPlayers({ data: { url: playersUrl } }),
     enabled: !!playersUrl,
     staleTime: 5 * 60_000,
   });
@@ -69,11 +80,16 @@ function AuctionPage() {
   if (playersQ.error)
     return <ErrorScreen message={playersQ.error?.message ?? "Failed to load sheet"} />;
 
+  const players = playersQ.data ?? [];
+  if (players.length === 0) {
+    return <EmptyPlayersScreen auctionType={type} />;
+  }
+
   return (
     <AuctionFloor
       auctionKey={type}
       label={meta.title}
-      players={playersQ.data ?? []}
+      players={players}
       teams={TEAMS}
     />
   );
@@ -354,6 +370,32 @@ function ErrorScreen({ message }: { message: string }) {
           Make sure your Google Sheets are shared as "Anyone with link · Viewer" or published to web.
         </p>
         <Link to="/" className="mt-4 inline-block rounded bg-primary px-4 py-2 text-primary-foreground">Home</Link>
+      </div>
+    </div>
+  );
+}
+
+function EmptyPlayersScreen({ auctionType }: { auctionType: string }) {
+  const clearCache = () => {
+    localStorage.removeItem(`auction-state-v1:${auctionType}`);
+    window.location.reload();
+  };
+  return (
+    <div className="grid min-h-screen place-items-center stadium-bg p-6">
+      <div className="glass-strong max-w-md rounded-2xl p-8 text-center">
+        <h1 className="text-xl font-bold">No players found</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          The Google Sheet loaded but no player rows were parsed. Check that row 1 uses
+          <code className="mx-1 rounded bg-white/10 px-1">Player Name</code> as the name column,
+          and the sheet is shared publicly.
+        </p>
+        <button
+          onClick={clearCache}
+          className="mt-4 rounded bg-primary px-4 py-2 text-primary-foreground"
+        >
+          Clear cache &amp; reload
+        </button>
+        <Link to="/" className="mt-3 block text-sm text-muted-foreground underline">Back home</Link>
       </div>
     </div>
   );

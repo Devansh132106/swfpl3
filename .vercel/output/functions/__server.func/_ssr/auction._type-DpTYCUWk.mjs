@@ -1,15 +1,14 @@
 import { j as jsxRuntimeExports, r as reactExports } from "../_libs/react.mjs";
 import { L as Link } from "../_libs/tanstack__react-router.mjs";
 import { u as useQuery } from "../_libs/tanstack__react-query.mjs";
-import { R as Route, S as SHEETS, A as AUCTION_META } from "./router-BB2kDjlH.mjs";
-import { P as Papa } from "../_libs/papaparse.mjs";
+import { R as Route, S as SHEETS, A as AUCTION_META, l as loadPlayers } from "./router-J1jmO_o-.mjs";
 import { u as utils, w as writeFileSync } from "../_libs/xlsx.mjs";
 import { F as FloatingParticles } from "./FloatingParticles-BsaonRbR.mjs";
+import "../_libs/seroval.mjs";
 import { m as motion, A as AnimatePresence } from "../_libs/framer-motion.mjs";
 import "../_libs/tanstack__router-core.mjs";
 import "../_libs/tanstack__history.mjs";
 import "../_libs/cookie-es.mjs";
-import "../_libs/seroval.mjs";
 import "../_libs/seroval-plugins.mjs";
 import "node:stream/web";
 import "node:stream";
@@ -20,58 +19,15 @@ import "async_hooks";
 import "stream";
 import "../_libs/isbot.mjs";
 import "../_libs/tanstack__query-core.mjs";
+import "./server-DAqtlgs9.mjs";
+import "node:async_hooks";
+import "../_libs/h3-v2.mjs";
+import "../_libs/rou3.mjs";
+import "../_libs/srvx.mjs";
+import "../_libs/zod.mjs";
 import "../_libs/motion-dom.mjs";
 import "../_libs/motion-utils.mjs";
 const TEAMS = [];
-function toCsvUrl(url) {
-  if (!url) return "";
-  if (url.includes("output=csv") || url.includes("tqx=out:csv")) return url;
-  const idMatch = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  if (!idMatch) return url;
-  const id = idMatch[1];
-  const gidMatch = url.match(/[#?&]gid=(\d+)/);
-  const gid = gidMatch ? gidMatch[1] : "0";
-  return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`;
-}
-async function fetchCsv(url) {
-  if (!url) return [];
-  const res = await fetch(toCsvUrl(url));
-  if (!res.ok) throw new Error(`Failed to load sheet (${res.status})`);
-  const text = await res.text();
-  const parsed = Papa.parse(text, {
-    header: true,
-    skipEmptyLines: true,
-    transformHeader: (h) => h.trim().toLowerCase().replace(/\s+/g, " ")
-  });
-  return parsed.data;
-}
-const num = (v) => {
-  if (!v) return 0;
-  const n = Number(String(v).replace(/[^0-9.-]/g, ""));
-  return Number.isFinite(n) ? n : 0;
-};
-const str = (v) => (v ?? "").toString().trim();
-async function fetchPlayers(url) {
-  const rows = await fetchCsv(url);
-  return rows.map((r, i) => {
-    const name = str(r["name"]);
-    const sold = num(r["sold price"]);
-    const statusRaw = str(r["status"]).toUpperCase();
-    return {
-      id: `${name}-${i}`,
-      name,
-      role: str(r["role"]) || "Midfield",
-      basePrice: num(r["base price"]),
-      photoUrl: str(r["photo url"]) || str(r["photo"]),
-      jerseyName: str(r["jersey name"]),
-      jerseyNumber: str(r["jersey number"]),
-      jerseySize: str(r["jersey size"]),
-      status: statusRaw || "AVAILABLE",
-      soldPrice: sold || null,
-      team: str(r["team"]) || null
-    };
-  }).filter((p) => p.name);
-}
 const KEY = (auction) => `auction-state-v1:${auction}`;
 function useAuctionState(auction, initialPlayers, teams) {
   const [players, setPlayers] = reactExports.useState(initialPlayers);
@@ -81,20 +37,34 @@ function useAuctionState(auction, initialPlayers, teams) {
   const [hydrated, setHydrated] = reactExports.useState(false);
   reactExports.useEffect(() => {
     if (typeof window === "undefined") return;
+    if (!initialPlayers.length) {
+      setHydrated(true);
+      return;
+    }
     try {
       const raw = localStorage.getItem(KEY(auction));
       if (raw) {
         const s = JSON.parse(raw);
-        const byId = new Map(s.players.map((p) => [p.id, p]));
-        setPlayers(initialPlayers.map((p) => byId.get(p.id) ?? p));
-        setHistory(s.history ?? []);
-        setCurrentIndex(Math.min(s.currentIndex ?? 0, initialPlayers.length - 1));
-        setPaused(!!s.paused);
+        if (s.players.length === 0) {
+          setPlayers(initialPlayers);
+          setHistory([]);
+          setCurrentIndex(0);
+          setPaused(false);
+        } else {
+          const byId = new Map(s.players.map((p) => [p.id, p]));
+          setPlayers(initialPlayers.map((p) => byId.get(p.id) ?? p));
+          setHistory(s.history ?? []);
+          setCurrentIndex(Math.min(s.currentIndex ?? 0, Math.max(initialPlayers.length - 1, 0)));
+          setPaused(!!s.paused);
+        }
+      } else {
+        setPlayers(initialPlayers);
       }
     } catch {
+      setPlayers(initialPlayers);
     }
     setHydrated(true);
-  }, [auction, initialPlayers.length]);
+  }, [auction, initialPlayers]);
   reactExports.useEffect(() => {
     if (!hydrated || typeof window === "undefined") return;
     const data = { players, history, currentIndex, paused };
@@ -276,6 +246,7 @@ const roleColor = {
   Attack: "from-[oklch(0.65_0.24_25)] to-[oklch(0.55_0.22_15)]",
   Midfield: "from-[oklch(0.7_0.2_150)] to-[oklch(0.55_0.2_170)]",
   Defense: "from-[oklch(0.65_0.2_240)] to-[oklch(0.5_0.2_260)]",
+  Defence: "from-[oklch(0.65_0.2_240)] to-[oklch(0.5_0.2_260)]",
   Goalkeeper: "from-[oklch(0.78_0.18_90)] to-[oklch(0.65_0.2_70)]"
 };
 function PlayerCard({ player }) {
@@ -492,15 +463,23 @@ function AuctionPage() {
   const meta = AUCTION_META[type];
   const playersUrl = SHEETS[meta.sheetKey];
   const playersQ = useQuery({
-    queryKey: ["players", type],
-    queryFn: () => fetchPlayers(playersUrl),
+    queryKey: ["players", type, "v2"],
+    queryFn: () => loadPlayers({
+      data: {
+        url: playersUrl
+      }
+    }),
     enabled: !!playersUrl,
     staleTime: 5 * 6e4
   });
   if (!playersUrl) return /* @__PURE__ */ jsxRuntimeExports.jsx(SetupNotice, { missing: meta.sheetKey });
   if (playersQ.isLoading) return /* @__PURE__ */ jsxRuntimeExports.jsx(LoadingScreen, {});
   if (playersQ.error) return /* @__PURE__ */ jsxRuntimeExports.jsx(ErrorScreen, { message: playersQ.error?.message ?? "Failed to load sheet" });
-  return /* @__PURE__ */ jsxRuntimeExports.jsx(AuctionFloor, { auctionKey: type, label: meta.title, players: playersQ.data ?? [], teams: TEAMS });
+  const players = playersQ.data ?? [];
+  if (players.length === 0) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx(EmptyPlayersScreen, { auctionType: type });
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(AuctionFloor, { auctionKey: type, label: meta.title, players, teams: TEAMS });
 }
 function AuctionFloor({
   auctionKey,
@@ -621,7 +600,7 @@ function AuctionFloor({
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-2xl p-4", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-wrap items-center gap-2", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: search, onChange: (e) => setSearch(e.target.value), placeholder: "Search player…", className: "flex-1 min-w-[160px] rounded-lg bg-white/5 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("select", { value: roleFilter, onChange: (e) => setRoleFilter(e.target.value), className: "rounded-lg bg-white/5 px-3 py-2 text-sm outline-none", children: ["All", "Attack", "Midfield", "Defense", "Goalkeeper"].map((r) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: r, children: r }, r)) }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("select", { value: roleFilter, onChange: (e) => setRoleFilter(e.target.value), className: "rounded-lg bg-white/5 px-3 py-2 text-sm outline-none", children: ["All", "Attack", "Midfield", "Defense", "Defence", "Goalkeeper"].map((r) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: r, children: r }, r)) }),
               /* @__PURE__ */ jsxRuntimeExports.jsx("select", { value: statusFilter, onChange: (e) => setStatusFilter(e.target.value), className: "rounded-lg bg-white/5 px-3 py-2 text-sm outline-none", children: ["All", "Remaining", "Sold", "Unsold"].map((s) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: s, children: s }, s)) })
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-3 max-h-64 overflow-y-auto", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-1 gap-1.5 md:grid-cols-2", children: [
@@ -714,6 +693,24 @@ function ErrorScreen({
     /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-2 text-sm text-muted-foreground", children: message }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-3 text-xs text-muted-foreground", children: 'Make sure your Google Sheets are shared as "Anyone with link · Viewer" or published to web.' }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(Link, { to: "/", className: "mt-4 inline-block rounded bg-primary px-4 py-2 text-primary-foreground", children: "Home" })
+  ] }) });
+}
+function EmptyPlayersScreen({
+  auctionType
+}) {
+  const clearCache = () => {
+    localStorage.removeItem(`auction-state-v1:${auctionType}`);
+    window.location.reload();
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid min-h-screen place-items-center stadium-bg p-6", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass-strong max-w-md rounded-2xl p-8 text-center", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-xl font-bold", children: "No players found" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "mt-2 text-sm text-muted-foreground", children: [
+      "The Google Sheet loaded but no player rows were parsed. Check that row 1 uses",
+      /* @__PURE__ */ jsxRuntimeExports.jsx("code", { className: "mx-1 rounded bg-white/10 px-1", children: "Player Name" }),
+      " as the name column, and the sheet is shared publicly."
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: clearCache, className: "mt-4 rounded bg-primary px-4 py-2 text-primary-foreground", children: "Clear cache & reload" }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Link, { to: "/", className: "mt-3 block text-sm text-muted-foreground underline", children: "Back home" })
   ] }) });
 }
 function SetupNotice({
