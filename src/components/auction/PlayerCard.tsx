@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import type { Player } from "@/lib/auction/types";
+import { PlayerPhoto } from "@/components/auction/PlayerPhoto";
 
 const roleColor: Record<string, string> = {
   Attack: "from-[oklch(0.65_0.24_25)] to-[oklch(0.55_0.22_15)]",
@@ -33,16 +34,7 @@ export function PlayerCard({ player }: Props) {
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
               className="relative mx-auto aspect-[3/4] max-w-sm overflow-hidden rounded-2xl bg-gradient-to-b from-white/10 to-white/5"
             >
-              {player.photoUrl ? (
-                <img
-                  src={player.photoUrl}
-                  alt={player.name}
-                  className="h-full w-full object-cover"
-                  onError={(e) => ((e.currentTarget.style.display = "none"))}
-                />
-              ) : (
-                <div className="grid h-full w-full place-items-center text-7xl">⚽</div>
-              )}
+              <PlayerPhoto key={player.id} photoUrl={player.photoUrl} name={player.name} />
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4">
                 <span className={`inline-flex rounded-full bg-gradient-to-r ${roleColor[player.role] ?? roleColor.Midfield} px-3 py-1 text-xs font-bold uppercase tracking-wider shadow-lg`}>
                   {player.role}

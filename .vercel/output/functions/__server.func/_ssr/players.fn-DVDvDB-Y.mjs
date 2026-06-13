@@ -1,5 +1,6 @@
-import { T as TSS_SERVER_FUNCTION, c as createServerFn } from "./server-DAqtlgs9.mjs";
+import { T as TSS_SERVER_FUNCTION, c as createServerFn } from "./server-Bzn04SQx.mjs";
 import { P as Papa } from "../_libs/papaparse.mjs";
+import { n as normalizePhotoUrl } from "./drivePhoto-BlqciLZ2.mjs";
 import "../_libs/seroval.mjs";
 import "../_libs/react.mjs";
 import { o as objectType, s as stringType } from "../_libs/zod.mjs";
@@ -63,21 +64,21 @@ function pick(row, ...keys) {
   }
   return "";
 }
-function normalizePhotoUrl(url) {
-  if (!url) return "";
-  const openMatch = url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
-  if (openMatch) return `https://drive.google.com/uc?export=view&id=${openMatch[1]}`;
-  const fileMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if (fileMatch) return `https://drive.google.com/uc?export=view&id=${fileMatch[1]}`;
-  return url;
-}
 async function fetchPlayers(url) {
   const rows = await fetchCsv(url);
   return rows.map((r, i) => {
     const name = pick(r, "name", "player name", "player");
     const sold = num(pick(r, "sold price", "sold price (₹)", "price sold"));
     const statusRaw = pick(r, "status").toUpperCase();
-    const photoRaw = pick(r, "photo url", "photo", "player picture", "picture", "image");
+    const photoRaw = pick(
+      r,
+      "photo url",
+      "photo",
+      "player picture",
+      "profile picture",
+      "picture",
+      "image"
+    );
     return {
       id: `${name}-${i}`,
       name,
@@ -100,7 +101,7 @@ const loadPlayers_createServerFn_handler = createServerRpc({
 }, (opts) => loadPlayers.__executeServer(opts));
 const loadPlayers = createServerFn({
   method: "GET"
-}).inputValidator(objectType({
+}).validator(objectType({
   url: stringType().min(1)
 })).handler(loadPlayers_createServerFn_handler, async ({
   data

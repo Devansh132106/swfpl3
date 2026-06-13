@@ -3,7 +3,8 @@ import { Q as QueryClientProvider } from "../_libs/tanstack__react-query.mjs";
 import { c as createRouter, a as createRootRouteWithContext, u as useRouter, L as Link, O as Outlet, H as HeadContent, S as Scripts, b as createFileRoute, l as lazyRouteComponent } from "../_libs/tanstack__react-router.mjs";
 import { S as notFound } from "../_libs/tanstack__router-core.mjs";
 import { r as reactExports, j as jsxRuntimeExports } from "../_libs/react.mjs";
-import { c as createServerFn, T as TSS_SERVER_FUNCTION, g as getServerFnById } from "./server-DAqtlgs9.mjs";
+import { c as createServerFn, T as TSS_SERVER_FUNCTION, g as getServerFnById } from "./server-Bzn04SQx.mjs";
+import { d as driveImageDirectUrls } from "./drivePhoto-BlqciLZ2.mjs";
 import { o as objectType, s as stringType } from "../_libs/zod.mjs";
 import "../_libs/react-dom.mjs";
 import "util";
@@ -66,7 +67,7 @@ function ErrorComponent({ error, reset }) {
     )
   ] }) });
 }
-const Route$3 = createRootRouteWithContext()({
+const Route$4 = createRootRouteWithContext()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -100,11 +101,11 @@ function RootShell({ children }) {
   ] });
 }
 function RootComponent() {
-  const { queryClient } = Route$3.useRouteContext();
+  const { queryClient } = Route$4.useRouteContext();
   return /* @__PURE__ */ jsxRuntimeExports.jsx(QueryClientProvider, { client: queryClient, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Outlet, {}) });
 }
 const BASE_URL = "";
-const Route$2 = createFileRoute("/sitemap.xml")({
+const Route$3 = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
       GET: async () => {
@@ -120,8 +121,8 @@ const Route$2 = createFileRoute("/sitemap.xml")({
     }
   }
 });
-const $$splitComponentImporter$1 = () => import("./index-BQFjF4Sv.mjs");
-const Route$1 = createFileRoute("/")({
+const $$splitComponentImporter$1 = () => import("./index-nimdyJcY.mjs");
+const Route$2 = createFileRoute("/")({
   head: () => ({
     meta: [{
       title: "SWFPL 6.0 — Live Auction Platform"
@@ -177,14 +178,14 @@ var createSsrRpc = (functionId) => {
 };
 const loadPlayers = createServerFn({
   method: "GET"
-}).inputValidator(objectType({
+}).validator(objectType({
   url: stringType().min(1)
 })).handler(createSsrRpc("788cb3f044dc896b914af7d4d5649f1a6496e105be9fe6f6d2c466419caf549f"));
 const $$splitNotFoundComponentImporter = () => import("./auction._type-Cr4sL5to.mjs");
 const $$splitErrorComponentImporter = () => import("./auction._type-D6cfMVTw.mjs");
-const $$splitComponentImporter = () => import("./auction._type-DpTYCUWk.mjs");
+const $$splitComponentImporter = () => import("./auction._type-eHMt3BdB.mjs");
 const VALID = ["open", "veteran", "female"];
-const Route = createFileRoute("/auction/$type")({
+const Route$1 = createFileRoute("/auction/$type")({
   beforeLoad: ({
     params
   }) => {
@@ -229,27 +230,63 @@ const Route = createFileRoute("/auction/$type")({
   errorComponent: lazyRouteComponent($$splitErrorComponentImporter, "errorComponent"),
   notFoundComponent: lazyRouteComponent($$splitNotFoundComponentImporter, "notFoundComponent")
 });
-const SitemapDotxmlRoute = Route$2.update({
+const Route = createFileRoute("/api/drive-image/$fileId")({
+  server: {
+    handlers: {
+      GET: async ({ params }) => {
+        const fileId = params.fileId;
+        if (!fileId || !/^[a-zA-Z0-9_-]+$/.test(fileId)) {
+          return new Response("Invalid file id", { status: 400 });
+        }
+        for (const url of driveImageDirectUrls(fileId)) {
+          try {
+            const res = await fetch(url, { redirect: "follow" });
+            if (!res.ok) continue;
+            const contentType = res.headers.get("content-type") ?? "";
+            if (contentType.includes("text/html")) continue;
+            const body = await res.arrayBuffer();
+            if (body.byteLength < 100) continue;
+            return new Response(body, {
+              headers: {
+                "Content-Type": contentType.split(";")[0] || "image/jpeg",
+                "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800"
+              }
+            });
+          } catch {
+          }
+        }
+        return new Response("Image not found", { status: 404 });
+      }
+    }
+  }
+});
+const SitemapDotxmlRoute = Route$3.update({
   id: "/sitemap.xml",
   path: "/sitemap.xml",
-  getParentRoute: () => Route$3
+  getParentRoute: () => Route$4
 });
-const IndexRoute = Route$1.update({
+const IndexRoute = Route$2.update({
   id: "/",
   path: "/",
-  getParentRoute: () => Route$3
+  getParentRoute: () => Route$4
 });
-const AuctionTypeRoute = Route.update({
+const AuctionTypeRoute = Route$1.update({
   id: "/auction/$type",
   path: "/auction/$type",
-  getParentRoute: () => Route$3
+  getParentRoute: () => Route$4
+});
+const ApiDriveImageFileIdRoute = Route.update({
+  id: "/api/drive-image/$fileId",
+  path: "/api/drive-image/$fileId",
+  getParentRoute: () => Route$4
 });
 const rootRouteChildren = {
   IndexRoute,
   SitemapDotxmlRoute,
-  AuctionTypeRoute
+  AuctionTypeRoute,
+  ApiDriveImageFileIdRoute
 };
-const routeTree = Route$3._addFileChildren(rootRouteChildren)._addFileTypes();
+const routeTree = Route$4._addFileChildren(rootRouteChildren)._addFileTypes();
 const getRouter = () => {
   const queryClient = new QueryClient();
   const router2 = createRouter({
@@ -266,7 +303,7 @@ const router = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProper
 }, Symbol.toStringTag, { value: "Module" }));
 export {
   AUCTION_META as A,
-  Route as R,
+  Route$1 as R,
   SHEETS as S,
   loadPlayers as l,
   router as r

@@ -1,8 +1,9 @@
 import { j as jsxRuntimeExports, r as reactExports } from "../_libs/react.mjs";
 import { L as Link } from "../_libs/tanstack__react-router.mjs";
 import { u as useQuery } from "../_libs/tanstack__react-query.mjs";
-import { R as Route, S as SHEETS, A as AUCTION_META, l as loadPlayers } from "./router-J1jmO_o-.mjs";
+import { R as Route$1, S as SHEETS, A as AUCTION_META, l as loadPlayers } from "./router-mtd1doPk.mjs";
 import { u as utils, w as writeFileSync } from "../_libs/xlsx.mjs";
+import { e as extractDriveFileId, a as driveImageProxyUrl, d as driveImageDirectUrls } from "./drivePhoto-BlqciLZ2.mjs";
 import { F as FloatingParticles } from "./FloatingParticles-BsaonRbR.mjs";
 import "../_libs/seroval.mjs";
 import { m as motion, A as AnimatePresence } from "../_libs/framer-motion.mjs";
@@ -19,7 +20,7 @@ import "async_hooks";
 import "stream";
 import "../_libs/isbot.mjs";
 import "../_libs/tanstack__query-core.mjs";
-import "./server-DAqtlgs9.mjs";
+import "./server-Bzn04SQx.mjs";
 import "node:async_hooks";
 import "../_libs/h3-v2.mjs";
 import "../_libs/rou3.mjs";
@@ -242,6 +243,28 @@ function downloadAuctionResults(auctionLabel, teams, players) {
   }
   writeFileSync(wb, `${auctionLabel}-auction-results.xlsx`);
 }
+function PlayerPhoto({ photoUrl, name, className = "h-full w-full object-cover" }) {
+  const fileId = extractDriveFileId(photoUrl);
+  const candidates = fileId ? [driveImageProxyUrl(fileId), ...driveImageDirectUrls(fileId)] : photoUrl ? [photoUrl] : [];
+  const [index, setIndex] = reactExports.useState(0);
+  const src = candidates[index];
+  if (!src) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-full w-full place-items-center bg-gradient-to-b from-white/10 to-white/5 text-7xl", children: "⚽" });
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(
+    "img",
+    {
+      src,
+      alt: name,
+      className,
+      referrerPolicy: "no-referrer",
+      loading: "lazy",
+      onError: () => {
+        if (index < candidates.length - 1) setIndex((i) => i + 1);
+      }
+    }
+  );
+}
 const roleColor = {
   Attack: "from-[oklch(0.65_0.24_25)] to-[oklch(0.55_0.22_15)]",
   Midfield: "from-[oklch(0.7_0.2_150)] to-[oklch(0.55_0.2_170)]",
@@ -266,15 +289,7 @@ function PlayerCard({ player }) {
             transition: { duration: 4, repeat: Infinity, ease: "easeInOut" },
             className: "relative mx-auto aspect-[3/4] max-w-sm overflow-hidden rounded-2xl bg-gradient-to-b from-white/10 to-white/5",
             children: [
-              player.photoUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx(
-                "img",
-                {
-                  src: player.photoUrl,
-                  alt: player.name,
-                  className: "h-full w-full object-cover",
-                  onError: (e) => e.currentTarget.style.display = "none"
-                }
-              ) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-full w-full place-items-center text-7xl", children: "⚽" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx(PlayerPhoto, { photoUrl: player.photoUrl, name: player.name }, player.id),
               /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `inline-flex rounded-full bg-gradient-to-r ${roleColor[player.role] ?? roleColor.Midfield} px-3 py-1 text-xs font-bold uppercase tracking-wider shadow-lg`, children: player.role }) })
             ]
           }
@@ -459,7 +474,7 @@ function Stat({ label, value }) {
 function AuctionPage() {
   const {
     type
-  } = Route.useParams();
+  } = Route$1.useParams();
   const meta = AUCTION_META[type];
   const playersUrl = SHEETS[meta.sheetKey];
   const playersQ = useQuery({

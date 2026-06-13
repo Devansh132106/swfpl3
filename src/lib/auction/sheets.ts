@@ -1,4 +1,5 @@
 import Papa from "papaparse";
+import { normalizePhotoUrl } from "./drivePhoto";
 import type { Player } from "./types";
 
 function toCsvUrl(url: string): string {
@@ -41,16 +42,6 @@ function pick(row: Record<string, string>, ...keys: string[]): string {
   return "";
 }
 
-/** Google Drive share links → direct image URL for <img src>. */
-function normalizePhotoUrl(url: string): string {
-  if (!url) return "";
-  const openMatch = url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
-  if (openMatch) return `https://drive.google.com/uc?export=view&id=${openMatch[1]}`;
-  const fileMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if (fileMatch) return `https://drive.google.com/uc?export=view&id=${fileMatch[1]}`;
-  return url;
-}
-
 export async function fetchPlayers(url: string): Promise<Player[]> {
   const rows = await fetchCsv(url);
   return rows
@@ -58,7 +49,15 @@ export async function fetchPlayers(url: string): Promise<Player[]> {
       const name = pick(r, "name", "player name", "player");
       const sold = num(pick(r, "sold price", "sold price (₹)", "price sold"));
       const statusRaw = pick(r, "status").toUpperCase();
-      const photoRaw = pick(r, "photo url", "photo", "player picture", "picture", "image");
+      const photoRaw = pick(
+        r,
+        "photo url",
+        "photo",
+        "player picture",
+        "profile picture",
+        "picture",
+        "image",
+      );
       return {
         id: `${name}-${i}`,
         name,

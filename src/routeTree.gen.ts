@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuctionTypeRouteImport } from './routes/auction.$type'
+import { Route as ApiDriveImageFileIdRouteImport } from './routes/api/drive-image.$fileId'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -28,35 +29,53 @@ const AuctionTypeRoute = AuctionTypeRouteImport.update({
   path: '/auction/$type',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDriveImageFileIdRoute = ApiDriveImageFileIdRouteImport.update({
+  id: '/api/drive-image/$fileId',
+  path: '/api/drive-image/$fileId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/auction/$type': typeof AuctionTypeRoute
+  '/api/drive-image/$fileId': typeof ApiDriveImageFileIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/auction/$type': typeof AuctionTypeRoute
+  '/api/drive-image/$fileId': typeof ApiDriveImageFileIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/auction/$type': typeof AuctionTypeRoute
+  '/api/drive-image/$fileId': typeof ApiDriveImageFileIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/sitemap.xml' | '/auction/$type'
+  fullPaths:
+    | '/'
+    | '/sitemap.xml'
+    | '/auction/$type'
+    | '/api/drive-image/$fileId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/sitemap.xml' | '/auction/$type'
-  id: '__root__' | '/' | '/sitemap.xml' | '/auction/$type'
+  to: '/' | '/sitemap.xml' | '/auction/$type' | '/api/drive-image/$fileId'
+  id:
+    | '__root__'
+    | '/'
+    | '/sitemap.xml'
+    | '/auction/$type'
+    | '/api/drive-image/$fileId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   AuctionTypeRoute: typeof AuctionTypeRoute
+  ApiDriveImageFileIdRoute: typeof ApiDriveImageFileIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +101,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuctionTypeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/drive-image/$fileId': {
+      id: '/api/drive-image/$fileId'
+      path: '/api/drive-image/$fileId'
+      fullPath: '/api/drive-image/$fileId'
+      preLoaderRoute: typeof ApiDriveImageFileIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +115,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   AuctionTypeRoute: AuctionTypeRoute,
+  ApiDriveImageFileIdRoute: ApiDriveImageFileIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
