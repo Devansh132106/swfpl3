@@ -3,9 +3,7 @@ import type { Player } from "./types";
 
 function toCsvUrl(url: string): string {
   if (!url) return "";
-  // Already a CSV-export URL
   if (url.includes("output=csv") || url.includes("tqx=out:csv")) return url;
-  // Convert /edit?...#gid=N or /edit?gid=N to gviz CSV
   const idMatch = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
   if (!idMatch) return url;
   const id = idMatch[1];
@@ -34,25 +32,45 @@ const num = (v: string | undefined) => {
 };
 const str = (v: string | undefined) => (v ?? "").toString().trim();
 
+/** Try multiple normalized header aliases (sheet columns vary by tab). */
+function pick(row: Record<string, string>, ...keys: string[]): string {
+  for (const key of keys) {
+    const v = str(row[key]);
+    if (v) return v;
+  }
+  return "";
+}
+
+/** Google Drive share links → direct image URL for <img src>. */
+function normalizePhotoUrl(url: string): string {
+  if (!url) return "";
+  const openMatch = url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
+  if (openMatch) return `https://drive.google.com/uc?export=view&id=${openMatch[1]}`;
+  const fileMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fileMatch) return `https://drive.google.com/uc?export=view&id=${fileMatch[1]}`;
+  return url;
+}
+
 export async function fetchPlayers(url: string): Promise<Player[]> {
   const rows = await fetchCsv(url);
   return rows
     .map((r, i): Player => {
-      const name = str(r["name"]);
-      const sold = num(r["sold price"]);
-      const statusRaw = str(r["status"]).toUpperCase();
+      const name = pick(r, "name", "player name", "player");
+      const sold = num(pick(r, "sold price", "sold price (₹)", "price sold"));
+      const statusRaw = pick(r, "status").toUpperCase();
+      const photoRaw = pick(r, "photo url", "photo", "player picture", "picture", "image");
       return {
         id: `${name}-${i}`,
         name,
-        role: str(r["role"]) || "Midfield",
-        basePrice: num(r["base price"]),
-        photoUrl: str(r["photo url"]) || str(r["photo"]),
-        jerseyName: str(r["jersey name"]),
-        jerseyNumber: str(r["jersey number"]),
-        jerseySize: str(r["jersey size"]),
+        role: pick(r, "role", "position") || "Midfield",
+        basePrice: num(pick(r, "base price", "base", "starting price", "min price")),
+        photoUrl: normalizePhotoUrl(photoRaw),
+        jerseyName: pick(r, "jersey name"),
+        jerseyNumber: pick(r, "jersey number", "jersey no.", "jersey no", "jersey #"),
+        jerseySize: pick(r, "jersey size", "size"),
         status: statusRaw || "AVAILABLE",
         soldPrice: sold || null,
-        team: str(r["team"]) || null,
+        team: pick(r, "team", "sold to") || null,
       };
     })
     .filter((p) => p.name);

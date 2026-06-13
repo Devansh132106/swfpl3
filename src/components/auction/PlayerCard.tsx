@@ -5,6 +5,7 @@ const roleColor: Record<string, string> = {
   Attack: "from-[oklch(0.65_0.24_25)] to-[oklch(0.55_0.22_15)]",
   Midfield: "from-[oklch(0.7_0.2_150)] to-[oklch(0.55_0.2_170)]",
   Defense: "from-[oklch(0.65_0.2_240)] to-[oklch(0.5_0.2_260)]",
+  Defence: "from-[oklch(0.65_0.2_240)] to-[oklch(0.5_0.2_260)]",
   Goalkeeper: "from-[oklch(0.78_0.18_90)] to-[oklch(0.65_0.2_70)]",
 };
 

@@ -21,24 +21,26 @@ export function useAuctionState(
   const [paused, setPaused] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
-  // Hydrate from localStorage on mount
+  // Hydrate from localStorage on mount; re-sync when sheet data arrives
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const raw = localStorage.getItem(KEY(auction));
       if (raw) {
         const s = JSON.parse(raw) as PersistedState;
-        // Merge: prefer persisted player rows, but only for IDs that exist in incoming list
         const byId = new Map(s.players.map((p) => [p.id, p]));
         setPlayers(initialPlayers.map((p) => byId.get(p.id) ?? p));
         setHistory(s.history ?? []);
-        setCurrentIndex(Math.min(s.currentIndex ?? 0, initialPlayers.length - 1));
+        setCurrentIndex(Math.min(s.currentIndex ?? 0, Math.max(initialPlayers.length - 1, 0)));
         setPaused(!!s.paused);
+      } else {
+        setPlayers(initialPlayers);
       }
-    } catch {}
+    } catch {
+      setPlayers(initialPlayers);
+    }
     setHydrated(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auction, initialPlayers.length]);
+  }, [auction, initialPlayers]);
 
   // Persist
   useEffect(() => {
