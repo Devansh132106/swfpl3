@@ -3,6 +3,7 @@ const SENIOR_PLAYER_NAMES = [
   "Joydip Basak",
   "Rajroop Ghoshal",
   "Puspendu Karmakar",
+  "Anandarup",
   "Prosenjit Saha",
   "SWARUP MOZUMDER",
   "Debopratim Das"
@@ -13,36 +14,37 @@ const AUCTION_RULES = {
     basePrice: 5e3,
     budget: LAKH,
     minPlayers: 5,
-    maxPlayers: 8,
+    maxPlayers: 6,
     reopenUnsold: true,
     groups: ["goalkeeper", "player", "senior"]
   },
   veteran: {
     basePrice: 5e3,
     budget: LAKH,
-    minPlayers: 8,
-    maxPlayers: 8,
+    minPlayers: 5,
+    maxPlayers: 6,
     reopenUnsold: true
   },
   female: {
-    basePrice: 5e3,
+    basePrice: 0,
     budget: LAKH,
     minPlayers: 5,
-    maxPlayers: 15,
-    reopenUnsold: true
+    maxPlayers: 6,
+    reopenUnsold: false,
+    lotteryMode: true
   },
   "kids-u14": {
     basePrice: 5e3,
     budget: LAKH,
-    minPlayers: 6,
-    maxPlayers: 6,
+    minPlayers: 4,
+    maxPlayers: 5,
     reopenUnsold: true
   },
   "kids-u11": {
     basePrice: 0,
     budget: LAKH,
-    minPlayers: 6,
-    maxPlayers: 6,
+    minPlayers: 4,
+    maxPlayers: 5,
     reopenUnsold: false,
     lotteryMode: true
   }
@@ -71,6 +73,19 @@ function countryTeam(id, name, captain, mentor, countryCode, extra) {
     budget: rules.budget,
     maxSeniorPlayers: 1,
     ...extra
+  };
+}
+function simpleTeam(id, name, type) {
+  const rules = getAuctionRules(type);
+  return {
+    id,
+    name,
+    captain: "",
+    mentor: "",
+    minPlayers: rules.minPlayers,
+    maxPlayers: rules.maxPlayers,
+    logoUrl: "",
+    budget: rules.budget
   };
 }
 function captainTeam(id, captain, type) {
@@ -103,6 +118,10 @@ const TEAMS_BY_AUCTION = {
     captainTeam("swarup", "SWARUP MOZUMDER", "veteran"),
     captainTeam("nimish", "Nimish Mishra", "veteran"),
     captainTeam("chiradip", "Chiradip", "veteran")
+  ],
+  female: [
+    simpleTeam("team1", "Team 1", "female"),
+    simpleTeam("team2", "Team 2", "female")
   ],
   "kids-u14": [
     captainTeam("priyanshu", "Priyanshu", "kids-u14"),

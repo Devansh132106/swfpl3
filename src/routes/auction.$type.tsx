@@ -32,7 +32,7 @@ export const Route = createFileRoute("/auction/$type")({
     const playersUrl = SHEETS[meta.sheetKey];
     if (!playersUrl) return;
     await context.queryClient.ensureQueryData({
-      queryKey: ["players", type, "v6"],
+      queryKey: ["players", type, "v7"],
       queryFn: () => loadPlayers({ data: { url: playersUrl, auctionType: type } }),
       staleTime: 5 * 60_000,
     });
@@ -78,7 +78,7 @@ function AuctionPage() {
   const rules = getAuctionRules(type);
 
   const playersQ = useQuery({
-    queryKey: ["players", type, "v6"],
+    queryKey: ["players", type, "v7"],
     queryFn: () => loadPlayers({ data: { url: playersUrl, auctionType: type } }),
     enabled: !!playersUrl,
     staleTime: 5 * 60_000,
@@ -116,18 +116,11 @@ function AuctionFloor({
 
   const [soldPrice, setSoldPrice] = useState<string>("");
   const [teamName, setTeamName] = useState<string>("");
-  const [jName, setJName] = useState("");
-  const [jNum, setJNum] = useState("");
-  const [jSize, setJSize] = useState("");
 
-  // Sync form fields with current player
   useEffect(() => {
     if (!currentPlayer) return;
     setSoldPrice(String(currentPlayer.soldPrice ?? currentPlayer.basePrice ?? rules.basePrice));
     setTeamName(currentPlayer.team ?? "");
-    setJName(currentPlayer.jerseyName ?? "");
-    setJNum(currentPlayer.jerseyNumber ?? "");
-    setJSize(currentPlayer.jerseySize ?? "");
   }, [currentPlayer?.id, rules.basePrice]); // eslint-disable-line
 
   const [search, setSearch] = useState("");
@@ -171,7 +164,7 @@ function AuctionFloor({
     if (paused) return alert("Auction is paused");
     const price = Number(soldPrice);
     if (!price || !teamName) return alert("Enter sold price and team");
-    const err = state.sellPlayer({ soldPrice: price, teamName, jerseyName: jName, jerseyNumber: jNum, jerseySize: jSize });
+    const err = state.sellPlayer({ soldPrice: price, teamName });
     if (err) alert(err);
   };
 
@@ -254,34 +247,17 @@ function AuctionFloor({
                     <Field label="Team">
                       <select
                         value={teamName} onChange={(e) => setTeamName(e.target.value)}
-                        className="w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]"
+                        className="w-full rounded-lg bg-white px-3 py-2 text-black outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]"
                       >
-                        <option value="">Select team…</option>
+                        <option value="" className="text-black">Select team…</option>
                         {eligible.map((t) => (
-                          <option key={t.id} value={t.name}>{t.name}</option>
+                          <option key={t.id} value={t.name} className="text-black">{t.name}</option>
                         ))}
                       </select>
                       {currentPlayer && eligible.length === 0 && (
                         <p className="mt-1 text-xs text-destructive">No team can bid on this player at this price.</p>
                       )}
                     </Field>
-                    <Field label="Jersey Name">
-                      <input value={jName} onChange={(e) => setJName(e.target.value)}
-                        className="w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]" />
-                    </Field>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field label="Jersey No">
-                        <input value={jNum} onChange={(e) => setJNum(e.target.value)}
-                          className="w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]" />
-                      </Field>
-                      <Field label="Jersey Size">
-                        <select value={jSize} onChange={(e) => setJSize(e.target.value)}
-                          className="w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]">
-                          <option value="">—</option>
-                          {["XS","S","M","L","XL","XXL","XXXL"].map((s) => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                      </Field>
-                    </div>
                   </div>
 
                   <div className="mt-5 grid grid-cols-2 gap-2 md:grid-cols-4">
@@ -377,9 +353,12 @@ function AuctionFloor({
 
 function RulesBanner({ rules }: { rules: ReturnType<typeof getAuctionRules> }) {
   if (rules.lotteryMode) {
+    const playerRange = rules.minPlayers === rules.maxPlayers
+      ? `${rules.maxPlayers} players`
+      : `${rules.minPlayers}–${rules.maxPlayers} players each`;
     return (
       <div className="glass rounded-xl px-4 py-2 text-xs text-muted-foreground">
-        <strong className="text-foreground">Lottery mode</strong> — 3 teams × {rules.maxPlayers} players, randomly assigned via the wheel.
+        <strong className="text-foreground">Lottery mode</strong> — {playerRange}, randomly assigned via the wheel.
       </div>
     );
   }

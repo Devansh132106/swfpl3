@@ -10,7 +10,7 @@ export interface AuctionRules {
   reopenUnsold: boolean;
   /** Open auction runs in these group phases (in order). */
   groups?: PlayerGroup[];
-  /** U11 uses lottery wheel instead of bidding. */
+  /** Lottery wheel instead of bidding (U11, Female). */
   lotteryMode?: boolean;
 }
 
@@ -33,36 +33,37 @@ export const AUCTION_RULES: Record<AuctionType, AuctionRules> = {
     basePrice: 5000,
     budget: LAKH,
     minPlayers: 5,
-    maxPlayers: 8,
+    maxPlayers: 6,
     reopenUnsold: true,
     groups: ["goalkeeper", "player", "senior"],
   },
   veteran: {
     basePrice: 5000,
     budget: LAKH,
-    minPlayers: 8,
-    maxPlayers: 8,
+    minPlayers: 5,
+    maxPlayers: 6,
     reopenUnsold: true,
   },
   female: {
-    basePrice: 5000,
+    basePrice: 0,
     budget: LAKH,
     minPlayers: 5,
-    maxPlayers: 15,
-    reopenUnsold: true,
+    maxPlayers: 6,
+    reopenUnsold: false,
+    lotteryMode: true,
   },
   "kids-u14": {
     basePrice: 5000,
     budget: LAKH,
-    minPlayers: 6,
-    maxPlayers: 6,
+    minPlayers: 4,
+    maxPlayers: 5,
     reopenUnsold: true,
   },
   "kids-u11": {
     basePrice: 0,
     budget: LAKH,
-    minPlayers: 6,
-    maxPlayers: 6,
+    minPlayers: 4,
+    maxPlayers: 5,
     reopenUnsold: false,
     lotteryMode: true,
   },

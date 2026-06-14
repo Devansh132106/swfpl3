@@ -16,11 +16,11 @@ export const Route = createFileRoute("/")({
 });
 
 const cards: { type: AuctionType; tagline: string }[] = [
-  { type: "open", tagline: "Main league draft for every athlete in the open category." },
-  { type: "veteran", tagline: "Legends and seasoned pros battle for the squad." },
-  { type: "female", tagline: "Women's championship draft — the next icons." },
-  { type: "kids-u11", tagline: "U11 lottery — 3 teams of 6 players each." },
-  { type: "kids-u14", tagline: "U15 draft — 3 teams of 6 players each." },
+  { type: "open", tagline: "8 country teams · 5–6 players each, 3 auction groups." },
+  { type: "veteran", tagline: "3 teams · 5–6 players each from the auction." },
+  { type: "female", tagline: "Women's lottery — Team 1 & Team 2, 5–6 players each." },
+  { type: "kids-u11", tagline: "U11 lottery — 3 teams, 4–5 players each." },
+  { type: "kids-u14", tagline: "U15 auction — 3 teams, 4–5 players each." },
 ];
 
 function Landing() {

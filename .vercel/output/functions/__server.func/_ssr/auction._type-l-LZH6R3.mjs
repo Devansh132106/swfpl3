@@ -1,8 +1,8 @@
 import { j as jsxRuntimeExports, r as reactExports } from "../_libs/react.mjs";
 import { L as Link } from "../_libs/tanstack__react-router.mjs";
 import { u as useQuery } from "../_libs/tanstack__react-query.mjs";
-import { R as Route$1, S as SHEETS, A as AUCTION_META, l as loadPlayers } from "./router-BUqAvXv2.mjs";
-import { e as eligibleTeams, G as GROUP_LABELS, g as getAuctionRules, a as getTeamsForAuction, r as resolveNextIndex, v as validateBid, f as findFirstInGroup, b as findFirstAvailable } from "./preparePlayers-91VM1nyj.mjs";
+import { R as Route$1, S as SHEETS, A as AUCTION_META, l as loadPlayers } from "./router-DBKzIYU9.mjs";
+import { e as eligibleTeams, G as GROUP_LABELS, g as getAuctionRules, a as getTeamsForAuction, r as resolveNextIndex, v as validateBid, f as findFirstInGroup, b as findFirstAvailable } from "./preparePlayers-Ds-hWBsH.mjs";
 import { u as utils, w as writeFileSync } from "../_libs/xlsx.mjs";
 import { e as extractDriveFileId, a as driveImageProxyUrl, d as driveImageDirectUrls } from "./drivePhoto-BlqciLZ2.mjs";
 import { F as FloatingParticles } from "./FloatingParticles-BsaonRbR.mjs";
@@ -21,7 +21,7 @@ import "async_hooks";
 import "stream";
 import "../_libs/isbot.mjs";
 import "../_libs/tanstack__query-core.mjs";
-import "./server-D7up-uxF.mjs";
+import "./server-D18vFVzI.mjs";
 import "node:async_hooks";
 import "../_libs/h3-v2.mjs";
 import "../_libs/rou3.mjs";
@@ -153,10 +153,7 @@ function useAuctionState(auction, initialPlayers, teams, rules) {
           ...p,
           status: "SOLD",
           soldPrice: opts.soldPrice,
-          team: opts.teamName,
-          jerseyName: opts.jerseyName || p.jerseyName,
-          jerseyNumber: opts.jerseyNumber || p.jerseyNumber,
-          jerseySize: opts.jerseySize || p.jerseySize
+          team: opts.teamName
         } : p);
         const idx = updated.findIndex((p) => p.id === prev.id);
         const result = resolveNextIndex(updated, idx, activeGroup, rules);
@@ -715,12 +712,16 @@ function TeamModal({ open, team, players, spent, onClose }) {
             /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-16 w-16 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/5", children: team.logoUrl ? /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: team.logoUrl, alt: `${team.name} flag`, className: "h-full w-full object-cover" }) : /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-2xl", children: "🛡️" }) }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex-1", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "font-display text-2xl font-bold", children: team.name }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-muted-foreground", children: [
-                "Captain: ",
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-foreground", children: team.captain }),
-                " · Mentor:",
-                " ",
-                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-foreground", children: team.mentor })
+              (team.captain || team.mentor) && /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "text-xs text-muted-foreground", children: [
+                team.captain && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                  "Captain: ",
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-foreground", children: team.captain })
+                ] }),
+                team.captain && team.mentor && " · ",
+                team.mentor && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+                  "Mentor: ",
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-foreground", children: team.mentor })
+                ] })
               ] })
             ] }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -738,19 +739,13 @@ function TeamModal({ open, team, players, spent, onClose }) {
               /* @__PURE__ */ jsxRuntimeExports.jsx("thead", { className: "bg-white/5 text-xs uppercase tracking-wider text-muted-foreground", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left", children: "Player" }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left", children: "Role" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left", children: "Jersey" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left", children: "No" }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-left", children: "Size" }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx("th", { className: "px-3 py-2 text-right", children: "Price" })
               ] }) }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("tbody", { children: [
-                players.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 6, className: "px-3 py-6 text-center text-muted-foreground", children: "No players yet." }) }),
+                players.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("tr", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("td", { colSpan: 3, className: "px-3 py-6 text-center text-muted-foreground", children: "No players yet." }) }),
                 players.map((p) => /* @__PURE__ */ jsxRuntimeExports.jsxs("tr", { className: "border-t border-white/5", children: [
                   /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2 font-medium", children: p.name }),
                   /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2", children: p.role }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2", children: p.jerseyName }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2", children: p.jerseyNumber }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("td", { className: "px-3 py-2", children: p.jerseySize }),
                   /* @__PURE__ */ jsxRuntimeExports.jsxs("td", { className: "px-3 py-2 text-right font-semibold text-[oklch(0.85_0.17_85)]", children: [
                     "₹",
                     (p.soldPrice ?? 0).toLocaleString()
@@ -784,7 +779,7 @@ function AuctionPage() {
   const teams = getTeamsForAuction(type);
   const rules = getAuctionRules(type);
   const playersQ = useQuery({
-    queryKey: ["players", type, "v5"],
+    queryKey: ["players", type, "v7"],
     queryFn: () => loadPlayers({
       data: {
         url: playersUrl,
@@ -824,16 +819,10 @@ function AuctionFloor({
   } = state;
   const [soldPrice, setSoldPrice] = reactExports.useState("");
   const [teamName, setTeamName] = reactExports.useState("");
-  const [jName, setJName] = reactExports.useState("");
-  const [jNum, setJNum] = reactExports.useState("");
-  const [jSize, setJSize] = reactExports.useState("");
   reactExports.useEffect(() => {
     if (!currentPlayer) return;
     setSoldPrice(String(currentPlayer.soldPrice ?? currentPlayer.basePrice ?? rules.basePrice));
     setTeamName(currentPlayer.team ?? "");
-    setJName(currentPlayer.jerseyName ?? "");
-    setJNum(currentPlayer.jerseyNumber ?? "");
-    setJSize(currentPlayer.jerseySize ?? "");
   }, [currentPlayer?.id, rules.basePrice]);
   const [search, setSearch] = reactExports.useState("");
   const [roleFilter, setRoleFilter] = reactExports.useState("All");
@@ -870,10 +859,7 @@ function AuctionFloor({
     if (!price || !teamName) return alert("Enter sold price and team");
     const err = state.sellPlayer({
       soldPrice: price,
-      teamName,
-      jerseyName: jName,
-      jerseyNumber: jNum,
-      jerseySize: jSize
+      teamName
     });
     if (err) alert(err);
   };
@@ -924,19 +910,11 @@ function AuctionFloor({
               /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-1 gap-3 md:grid-cols-2", children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsx(Field, { label: `Sold Price (min ₹${rules.basePrice.toLocaleString()})`, children: /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "number", value: soldPrice, onChange: (e) => setSoldPrice(e.target.value), placeholder: String(rules.basePrice), min: rules.basePrice, className: "w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]" }) }),
                 /* @__PURE__ */ jsxRuntimeExports.jsxs(Field, { label: "Team", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { value: teamName, onChange: (e) => setTeamName(e.target.value), className: "w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]", children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Select team…" }),
-                    eligible.map((t) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: t.name, children: t.name }, t.id))
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { value: teamName, onChange: (e) => setTeamName(e.target.value), className: "w-full rounded-lg bg-white px-3 py-2 text-black outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]", children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", className: "text-black", children: "Select team…" }),
+                    eligible.map((t) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: t.name, className: "text-black", children: t.name }, t.id))
                   ] }),
                   currentPlayer && eligible.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-1 text-xs text-destructive", children: "No team can bid on this player at this price." })
-                ] }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx(Field, { label: "Jersey Name", children: /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: jName, onChange: (e) => setJName(e.target.value), className: "w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]" }) }),
-                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-3", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx(Field, { label: "Jersey No", children: /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: jNum, onChange: (e) => setJNum(e.target.value), className: "w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]" }) }),
-                  /* @__PURE__ */ jsxRuntimeExports.jsx(Field, { label: "Jersey Size", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { value: jSize, onChange: (e) => setJSize(e.target.value), className: "w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]", children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "—" }),
-                    ["XS", "S", "M", "L", "XL", "XXL", "XXXL"].map((s) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: s, children: s }, s))
-                  ] }) })
                 ] })
               ] }),
               /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-5 grid grid-cols-2 gap-2 md:grid-cols-4", children: [
@@ -996,11 +974,12 @@ function RulesBanner({
   rules
 }) {
   if (rules.lotteryMode) {
+    const playerRange2 = rules.minPlayers === rules.maxPlayers ? `${rules.maxPlayers} players` : `${rules.minPlayers}–${rules.maxPlayers} players each`;
     return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-xl px-4 py-2 text-xs text-muted-foreground", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { className: "text-foreground", children: "Lottery mode" }),
-      " — 3 teams × ",
-      rules.maxPlayers,
-      " players, randomly assigned via the wheel."
+      " — ",
+      playerRange2,
+      ", randomly assigned via the wheel."
     ] });
   }
   const playerRange = rules.minPlayers === rules.maxPlayers ? `${rules.maxPlayers} players` : `${rules.minPlayers}–${rules.maxPlayers} players`;

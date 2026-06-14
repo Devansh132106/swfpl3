@@ -124,7 +124,7 @@ export function useAuctionState(
   );
 
   const sellPlayer = useCallback(
-    (opts: { soldPrice: number; teamName: string; jerseyName: string; jerseyNumber: string; jerseySize: string }) => {
+    (opts: { soldPrice: number; teamName: string }) => {
       if (!currentPlayer) return "No player selected";
       const team = teams.find((t) => t.name === opts.teamName);
       if (!team) return "Select a team";
@@ -144,9 +144,6 @@ export function useAuctionState(
       setPlayers((ps) => {
         const updated = ps.map((p) => p.id === prev.id ? {
           ...p, status: "SOLD" as const, soldPrice: opts.soldPrice, team: opts.teamName,
-          jerseyName: opts.jerseyName || p.jerseyName,
-          jerseyNumber: opts.jerseyNumber || p.jerseyNumber,
-          jerseySize: opts.jerseySize || p.jerseySize,
         } : p);
         const idx = updated.findIndex((p) => p.id === prev.id);
         const result = resolveNextIndex(updated, idx, activeGroup, rules);

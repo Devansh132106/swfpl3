@@ -30,7 +30,7 @@ export const AUCTION_META: Record<
   },
   female: {
     title: "Female Auction",
-    subtitle: "Women's championship draft",
+    subtitle: "Women's lottery draft",
     accent: "from-[oklch(0.72_0.18_340)] to-[oklch(0.62_0.22_310)]",
     sheetKey: "femalePlayers",
   },

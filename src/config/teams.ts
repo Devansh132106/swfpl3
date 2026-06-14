@@ -29,6 +29,20 @@ function countryTeam(
   };
 }
 
+function simpleTeam(id: string, name: string, type: AuctionType): Team {
+  const rules = getAuctionRules(type);
+  return {
+    id,
+    name,
+    captain: "",
+    mentor: "",
+    minPlayers: rules.minPlayers,
+    maxPlayers: rules.maxPlayers,
+    logoUrl: "",
+    budget: rules.budget,
+  };
+}
+
 function captainTeam(id: string, captain: string, type: AuctionType): Team {
   const rules = getAuctionRules(type);
   return {
@@ -60,6 +74,10 @@ export const TEAMS_BY_AUCTION: Partial<Record<AuctionType, Team[]>> = {
     captainTeam("swarup", "SWARUP MOZUMDER", "veteran"),
     captainTeam("nimish", "Nimish Mishra", "veteran"),
     captainTeam("chiradip", "Chiradip", "veteran"),
+  ],
+  female: [
+    simpleTeam("team1", "Team 1", "female"),
+    simpleTeam("team2", "Team 2", "female"),
   ],
   "kids-u14": [
     captainTeam("priyanshu", "Priyanshu", "kids-u14"),

@@ -35,10 +35,13 @@ export function TeamModal({ open, team, players, spent, onClose }: Props) {
               </div>
               <div className="flex-1">
                 <h2 className="font-display text-2xl font-bold">{team.name}</h2>
-                <p className="text-xs text-muted-foreground">
-                  Captain: <span className="text-foreground">{team.captain}</span> · Mentor:{" "}
-                  <span className="text-foreground">{team.mentor}</span>
-                </p>
+                {(team.captain || team.mentor) && (
+                  <p className="text-xs text-muted-foreground">
+                    {team.captain && <>Captain: <span className="text-foreground">{team.captain}</span></>}
+                    {team.captain && team.mentor && " · "}
+                    {team.mentor && <>Mentor: <span className="text-foreground">{team.mentor}</span></>}
+                  </p>
+                )}
               </div>
               <button
                 onClick={onClose}
@@ -56,23 +59,17 @@ export function TeamModal({ open, team, players, spent, onClose }: Props) {
                     <tr>
                       <th className="px-3 py-2 text-left">Player</th>
                       <th className="px-3 py-2 text-left">Role</th>
-                      <th className="px-3 py-2 text-left">Jersey</th>
-                      <th className="px-3 py-2 text-left">No</th>
-                      <th className="px-3 py-2 text-left">Size</th>
                       <th className="px-3 py-2 text-right">Price</th>
                     </tr>
                   </thead>
                   <tbody>
                     {players.length === 0 && (
-                      <tr><td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">No players yet.</td></tr>
+                      <tr><td colSpan={3} className="px-3 py-6 text-center text-muted-foreground">No players yet.</td></tr>
                     )}
                     {players.map((p) => (
                       <tr key={p.id} className="border-t border-white/5">
                         <td className="px-3 py-2 font-medium">{p.name}</td>
                         <td className="px-3 py-2">{p.role}</td>
-                        <td className="px-3 py-2">{p.jerseyName}</td>
-                        <td className="px-3 py-2">{p.jerseyNumber}</td>
-                        <td className="px-3 py-2">{p.jerseySize}</td>
                         <td className="px-3 py-2 text-right font-semibold text-[oklch(0.85_0.17_85)]">
                           ₹{(p.soldPrice ?? 0).toLocaleString()}
                         </td>

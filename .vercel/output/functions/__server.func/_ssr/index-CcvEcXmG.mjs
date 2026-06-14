@@ -1,7 +1,7 @@
 import { j as jsxRuntimeExports } from "../_libs/react.mjs";
 import { L as Link } from "../_libs/tanstack__react-router.mjs";
 import { F as FloatingParticles } from "./FloatingParticles-BsaonRbR.mjs";
-import { A as AUCTION_META } from "./router-BUqAvXv2.mjs";
+import { A as AUCTION_META } from "./router-DBKzIYU9.mjs";
 import "../_libs/seroval.mjs";
 import { m as motion } from "../_libs/framer-motion.mjs";
 import "../_libs/tanstack__router-core.mjs";
@@ -18,7 +18,7 @@ import "stream";
 import "../_libs/isbot.mjs";
 import "../_libs/tanstack__query-core.mjs";
 import "../_libs/tanstack__react-query.mjs";
-import "./server-D7up-uxF.mjs";
+import "./server-D18vFVzI.mjs";
 import "node:async_hooks";
 import "../_libs/h3-v2.mjs";
 import "../_libs/rou3.mjs";
@@ -29,19 +29,19 @@ import "../_libs/motion-dom.mjs";
 import "../_libs/motion-utils.mjs";
 const cards = [{
   type: "open",
-  tagline: "Main league draft for every athlete in the open category."
+  tagline: "8 country teams · 5–6 players each, 3 auction groups."
 }, {
   type: "veteran",
-  tagline: "Legends and seasoned pros battle for the squad."
+  tagline: "3 teams · 5–6 players each from the auction."
 }, {
   type: "female",
-  tagline: "Women's championship draft — the next icons."
+  tagline: "Women's lottery — Team 1 & Team 2, 5–6 players each."
 }, {
   type: "kids-u11",
-  tagline: "U11 lottery — 3 teams of 6 players each."
+  tagline: "U11 lottery — 3 teams, 4–5 players each."
 }, {
   type: "kids-u14",
-  tagline: "U15 draft — 3 teams of 6 players each."
+  tagline: "U15 auction — 3 teams, 4–5 players each."
 }];
 function Landing() {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "relative min-h-screen overflow-hidden stadium-bg animate-gradient-pan", children: [
