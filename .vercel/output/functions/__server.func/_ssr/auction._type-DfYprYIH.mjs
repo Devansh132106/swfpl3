@@ -1,8 +1,8 @@
 import { j as jsxRuntimeExports, r as reactExports } from "../_libs/react.mjs";
 import { L as Link } from "../_libs/tanstack__react-router.mjs";
 import { u as useQuery } from "../_libs/tanstack__react-query.mjs";
-import { R as Route$1, S as SHEETS, A as AUCTION_META, l as loadPlayers } from "./router-gBAoY8fN.mjs";
-import { e as eligibleTeams, G as GROUP_LABELS, g as getAuctionRules, a as getTeamsForAuction, f as findNextInGroup, b as findNextAvailable, c as countAvailableInGroup, d as findFirstInGroup, h as countUnsold, i as findFirstAvailable, v as validateBid } from "./preparePlayers-BEU7JsqS.mjs";
+import { R as Route$1, S as SHEETS, A as AUCTION_META, l as loadPlayers } from "./router-BUqAvXv2.mjs";
+import { e as eligibleTeams, G as GROUP_LABELS, g as getAuctionRules, a as getTeamsForAuction, r as resolveNextIndex, v as validateBid, f as findFirstInGroup, b as findFirstAvailable } from "./preparePlayers-91VM1nyj.mjs";
 import { u as utils, w as writeFileSync } from "../_libs/xlsx.mjs";
 import { e as extractDriveFileId, a as driveImageProxyUrl, d as driveImageDirectUrls } from "./drivePhoto-BlqciLZ2.mjs";
 import { F as FloatingParticles } from "./FloatingParticles-BsaonRbR.mjs";
@@ -21,7 +21,7 @@ import "async_hooks";
 import "stream";
 import "../_libs/isbot.mjs";
 import "../_libs/tanstack__query-core.mjs";
-import "./server-Bge7SKfi.mjs";
+import "./server-D7up-uxF.mjs";
 import "node:async_hooks";
 import "../_libs/h3-v2.mjs";
 import "../_libs/rou3.mjs";
@@ -109,48 +109,20 @@ function useAuctionState(auction, initialPlayers, teams, rules) {
   }, [auction, players, history, currentIndex, paused, activeGroup, auctionRound, auctionComplete, hydrated]);
   const currentPlayer = players[currentIndex] ?? null;
   const teamStats = reactExports.useMemo(() => computeTeamStats(players, teams), [players, teams]);
-  const advanceWithinPhase = reactExports.useCallback(
-    (ps, idx, group) => {
-      if (group && rules.groups?.includes(group)) {
-        const next2 = findNextInGroup(ps, group, idx);
-        if (next2 >= 0) return next2;
-        return idx;
-      }
-      const next = findNextAvailable(ps, idx);
-      return next >= 0 ? next : idx;
-    },
-    [rules.groups]
-  );
-  const tryAdvanceGroupOrReopen = reactExports.useCallback(
-    (ps) => {
-      if (rules.groups?.length && activeGroup) {
-        const remaining = countAvailableInGroup(ps, activeGroup);
-        if (remaining > 0) return;
-        const groupIdx = rules.groups.indexOf(activeGroup);
-        const nextGroup = rules.groups[groupIdx + 1];
-        if (nextGroup) {
-          setActiveGroup(nextGroup);
-          const first = findFirstInGroup(ps, nextGroup);
-          if (first >= 0) setCurrentIndex(first);
-          return;
-        }
-      }
-      const unsold = countUnsold(ps);
-      if (unsold > 0 && rules.reopenUnsold) {
-        const reopened = ps.map(
-          (p) => p.status === "UNSOLD" ? { ...p, status: "AVAILABLE", soldPrice: null, team: null } : p
-        );
-        setPlayers(reopened);
+  const applyAdvance = reactExports.useCallback(
+    (ps, afterIndex) => {
+      const result = resolveNextIndex(ps, afterIndex, activeGroup, rules);
+      if (result.reopen) {
+        setPlayers(result.reopen);
         setAuctionRound((r) => r + 1);
-        const firstGroup = rules.groups?.[0] ?? null;
-        setActiveGroup(firstGroup);
-        const first = firstGroup ? findFirstInGroup(reopened, firstGroup) : findFirstAvailable(reopened);
-        if (first >= 0) setCurrentIndex(first);
+        setActiveGroup(result.activeGroup);
+        setCurrentIndex(result.index);
+        setAuctionComplete(false);
         return;
       }
-      if (countUnsold(ps) === 0 && !ps.some((p) => p.status === "AVAILABLE")) {
-        setAuctionComplete(true);
-      }
+      if (result.activeGroup !== activeGroup) setActiveGroup(result.activeGroup);
+      setCurrentIndex(result.index);
+      if (result.complete) setAuctionComplete(true);
     },
     [activeGroup, rules]
   );
@@ -187,15 +159,23 @@ function useAuctionState(auction, initialPlayers, teams, rules) {
           jerseySize: opts.jerseySize || p.jerseySize
         } : p);
         const idx = updated.findIndex((p) => p.id === prev.id);
-        const nextIdx = advanceWithinPhase(updated, idx, activeGroup);
-        setCurrentIndex(nextIdx);
-        setTimeout(() => tryAdvanceGroupOrReopen(updated), 0);
+        const result = resolveNextIndex(updated, idx, activeGroup, rules);
+        if (result.reopen) {
+          setAuctionRound((r) => r + 1);
+          setActiveGroup(result.activeGroup);
+          setCurrentIndex(result.index);
+          setAuctionComplete(false);
+          return result.reopen;
+        }
+        if (result.activeGroup !== activeGroup) setActiveGroup(result.activeGroup);
+        setCurrentIndex(result.index);
+        if (result.complete) setAuctionComplete(true);
         return updated;
       });
       setHistory((h) => [...h, record]);
       return null;
     },
-    [currentPlayer, teams, teamStats, rules, activeGroup, advanceWithinPhase, tryAdvanceGroupOrReopen]
+    [currentPlayer, teams, teamStats, rules, activeGroup]
   );
   const markUnsold = reactExports.useCallback(() => {
     if (!currentPlayer) return;
@@ -216,12 +196,20 @@ function useAuctionState(auction, initialPlayers, teams, rules) {
     setPlayers((ps) => {
       const updated = ps.map((p) => p.id === prev.id ? { ...p, status: "UNSOLD", soldPrice: null, team: null } : p);
       const idx = updated.findIndex((p) => p.id === prev.id);
-      const nextIdx = advanceWithinPhase(updated, idx, activeGroup);
-      setCurrentIndex(nextIdx);
-      setTimeout(() => tryAdvanceGroupOrReopen(updated), 0);
+      const result = resolveNextIndex(updated, idx, activeGroup, rules);
+      if (result.reopen) {
+        setAuctionRound((r) => r + 1);
+        setActiveGroup(result.activeGroup);
+        setCurrentIndex(result.index);
+        setAuctionComplete(false);
+        return result.reopen;
+      }
+      if (result.activeGroup !== activeGroup) setActiveGroup(result.activeGroup);
+      setCurrentIndex(result.index);
+      if (result.complete) setAuctionComplete(true);
       return updated;
     });
-  }, [currentPlayer, activeGroup, advanceWithinPhase, tryAdvanceGroupOrReopen]);
+  }, [currentPlayer, activeGroup, rules]);
   const undo = reactExports.useCallback(() => {
     setHistory((h) => {
       if (!h.length) return h;
@@ -242,8 +230,8 @@ function useAuctionState(auction, initialPlayers, teams, rules) {
     });
   }, [players]);
   const nextPlayer = reactExports.useCallback(() => {
-    setCurrentIndex((i) => advanceWithinPhase(players, i, activeGroup));
-  }, [players, activeGroup, advanceWithinPhase]);
+    applyAdvance(players, currentIndex);
+  }, [players, currentIndex, applyAdvance]);
   const goToPlayer = reactExports.useCallback((id) => {
     const idx = players.findIndex((p) => p.id === id);
     if (idx >= 0) setCurrentIndex(idx);
@@ -258,12 +246,29 @@ function useAuctionState(auction, initialPlayers, teams, rules) {
     setCurrentIndex(findStartIndex(fresh, initialGroup(rules)));
   }, [initialPlayers, rules]);
   const assignLottery = reactExports.useCallback((playerId, teamName) => {
-    setPlayers((ps) => ps.map(
-      (p) => p.id === playerId ? { ...p, status: "SOLD", soldPrice: 0, team: teamName } : p
-    ));
-    const remaining = players.filter((p) => p.id !== playerId && p.status === "AVAILABLE");
-    if (remaining.length === 0) setAuctionComplete(true);
-  }, [players]);
+    const team = teams.find((t) => t.name === teamName);
+    if (!team) return "Invalid team";
+    const stats = teamStats.get(team.name) ?? { bought: 0 };
+    if (stats.bought >= team.maxPlayers) return `${team.name} already has ${team.maxPlayers} players`;
+    setPlayers((ps) => {
+      const updated = ps.map(
+        (p) => p.id === playerId ? { ...p, status: "SOLD", soldPrice: 0, team: teamName } : p
+      );
+      const idx = updated.findIndex((p) => p.id === playerId);
+      const result = resolveNextIndex(updated, idx, activeGroup, rules);
+      if (result.reopen) {
+        setAuctionRound((r) => r + 1);
+        setActiveGroup(result.activeGroup);
+        setCurrentIndex(result.index);
+        setAuctionComplete(false);
+        return result.reopen;
+      }
+      setCurrentIndex(result.index);
+      if (result.complete) setAuctionComplete(true);
+      return updated;
+    });
+    return null;
+  }, [teams, teamStats, activeGroup, rules]);
   return {
     players,
     history,
@@ -487,25 +492,34 @@ const SEGMENT_COLORS = [
   "from-[oklch(0.72_0.18_340)] to-[oklch(0.62_0.22_310)]",
   "from-[oklch(0.75_0.18_200)] to-[oklch(0.65_0.22_220)]"
 ];
-function LotteryWheel({ players, teams, onAssign }) {
+function LotteryWheel({ players, teams, teamStats, onAssign }) {
   const remaining = reactExports.useMemo(() => players.filter((p) => p.status === "AVAILABLE"), [players]);
   const [spinning, setSpinning] = reactExports.useState(false);
   const [rotation, setRotation] = reactExports.useState(0);
   const [result, setResult] = reactExports.useState(null);
+  const eligibleTeams2 = reactExports.useMemo(
+    () => teams.filter((t) => (teamStats.get(t.name)?.bought ?? 0) < t.maxPlayers),
+    [teams, teamStats]
+  );
   const currentPlayer = remaining[0] ?? null;
   const spin = () => {
-    if (!currentPlayer || spinning || teams.length === 0) return;
+    if (!currentPlayer || spinning || eligibleTeams2.length === 0) return;
     setSpinning(true);
     setResult(null);
-    const teamIndex = Math.floor(Math.random() * teams.length);
-    const team = teams[teamIndex];
+    const teamIndex = Math.floor(Math.random() * eligibleTeams2.length);
+    const team = eligibleTeams2[teamIndex];
     const segment = 360 / teams.length;
-    const target = 360 * 5 + teamIndex * segment + segment / 2;
+    const fullIndex = teams.findIndex((t) => t.id === team.id);
+    const target = 360 * 5 + fullIndex * segment + segment / 2;
     setRotation((r) => r + target);
     setTimeout(() => {
       setSpinning(false);
+      const err = onAssign(currentPlayer.id, team.name);
+      if (err) {
+        alert(err);
+        return;
+      }
       setResult({ player: currentPlayer, team });
-      onAssign(currentPlayer.id, team.name);
     }, 4200);
   };
   if (!remaining.length) {
@@ -535,6 +549,7 @@ function LotteryWheel({ players, teams, onAssign }) {
           children: [
             teams.map((t, i) => {
               const angle = 360 / teams.length * i;
+              const full = (teamStats.get(t.name)?.bought ?? 0) >= t.maxPlayers;
               return /* @__PURE__ */ jsxRuntimeExports.jsx(
                 "div",
                 {
@@ -543,7 +558,7 @@ function LotteryWheel({ players, teams, onAssign }) {
                   children: /* @__PURE__ */ jsxRuntimeExports.jsx(
                     "span",
                     {
-                      className: `rounded-full bg-gradient-to-r ${SEGMENT_COLORS[i % SEGMENT_COLORS.length]} px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow`,
+                      className: `rounded-full bg-gradient-to-r ${SEGMENT_COLORS[i % SEGMENT_COLORS.length]} px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow ${full ? "opacity-40" : ""}`,
                       style: { transform: `rotate(${-angle - rotation}deg)` },
                       children: t.name.split(" ")[0]
                     }
@@ -561,10 +576,10 @@ function LotteryWheel({ players, teams, onAssign }) {
         {
           whileHover: { scale: 1.03 },
           whileTap: { scale: 0.97 },
-          disabled: spinning,
+          disabled: spinning || eligibleTeams2.length === 0,
           onClick: spin,
           className: "mt-8 rounded-xl bg-gradient-to-r from-[oklch(0.8_0.16_85)] to-[oklch(0.7_0.18_70)] px-8 py-3 font-display font-bold uppercase tracking-wider text-black disabled:opacity-50",
-          children: spinning ? "Spinning…" : "Spin the Wheel"
+          children: spinning ? "Spinning…" : eligibleTeams2.length === 0 ? "All teams full" : "Spin the Wheel"
         }
       )
     ] }),
@@ -769,7 +784,7 @@ function AuctionPage() {
   const teams = getTeamsForAuction(type);
   const rules = getAuctionRules(type);
   const playersQ = useQuery({
-    queryKey: ["players", type, "v4"],
+    queryKey: ["players", type, "v5"],
     queryFn: () => loadPlayers({
       data: {
         url: playersUrl,
@@ -902,7 +917,7 @@ function AuctionFloor({
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3 xl:items-start", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "xl:sticky xl:top-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(PlayerPortrait, { player: currentPlayer }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "space-y-4", children: [
-          rules.lotteryMode ? /* @__PURE__ */ jsxRuntimeExports.jsx(LotteryWheel, { players, teams, onAssign: assignLottery }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+          rules.lotteryMode ? /* @__PURE__ */ jsxRuntimeExports.jsx(LotteryWheel, { players, teams, teamStats, onAssign: assignLottery }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx(PlayerDetailsHeader, { player: currentPlayer }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(LiveBar, { player: currentPlayer, currentBid: Number(soldPrice) || null }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass-strong rounded-2xl p-5", children: [
@@ -983,7 +998,9 @@ function RulesBanner({
   if (rules.lotteryMode) {
     return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-xl px-4 py-2 text-xs text-muted-foreground", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { className: "text-foreground", children: "Lottery mode" }),
-      " — players are randomly assigned to teams via the wheel."
+      " — 3 teams × ",
+      rules.maxPlayers,
+      " players, randomly assigned via the wheel."
     ] });
   }
   const playerRange = rules.minPlayers === rules.maxPlayers ? `${rules.maxPlayers} players` : `${rules.minPlayers}–${rules.maxPlayers} players`;

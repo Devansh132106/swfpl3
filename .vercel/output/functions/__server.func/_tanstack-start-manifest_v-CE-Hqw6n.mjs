@@ -1,0 +1,4 @@
+const tsrStartManifest = () => ({ routes: { __root__: { filePath: "C:/Users/DEVANSH MEESRA/Downloads/pitch-prime-auction-main/pitch-prime-auction-main/src/routes/__root.tsx", children: ["/", "/sitemap.xml", "/auction/$type", "/api/drive-image/$fileId"], preloads: ["/assets/index-6U2WSwdL.js"], scripts: [{ attrs: { type: "module", async: true, src: "/assets/index-6U2WSwdL.js" } }] }, "/": { filePath: "C:/Users/DEVANSH MEESRA/Downloads/pitch-prime-auction-main/pitch-prime-auction-main/src/routes/index.tsx", children: void 0, preloads: ["/assets/index-CAmLA3AH.js", "/assets/FloatingParticles-B180qxqt.js"] }, "/auction/$type": { filePath: "C:/Users/DEVANSH MEESRA/Downloads/pitch-prime-auction-main/pitch-prime-auction-main/src/routes/auction.$type.tsx", children: void 0, preloads: ["/assets/auction._type-CvxoiQnk.js", "/assets/auction._type-ClKpiSPi.js", "/assets/auction._type-B2N_MHRi.js", "/assets/FloatingParticles-B180qxqt.js"] } } });
+export {
+  tsrStartManifest
+};

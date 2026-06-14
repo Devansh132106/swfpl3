@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import type { Player, Team } from "@/lib/auction/types";
+import type { Player, Team, TeamStats } from "@/lib/auction/types";
 
 interface Props {
   players: Player[];
   teams: Team[];
-  onAssign: (playerId: string, teamName: string) => void;
+  teamStats: Map<string, TeamStats>;
+  onAssign: (playerId: string, teamName: string) => string | null;
 }
 
 const SEGMENT_COLORS = [
@@ -17,30 +18,40 @@ const SEGMENT_COLORS = [
   "from-[oklch(0.75_0.18_200)] to-[oklch(0.65_0.22_220)]",
 ];
 
-export function LotteryWheel({ players, teams, onAssign }: Props) {
+export function LotteryWheel({ players, teams, teamStats, onAssign }: Props) {
   const remaining = useMemo(() => players.filter((p) => p.status === "AVAILABLE"), [players]);
   const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [result, setResult] = useState<{ player: Player; team: Team } | null>(null);
 
+  const eligibleTeams = useMemo(
+    () => teams.filter((t) => (teamStats.get(t.name)?.bought ?? 0) < t.maxPlayers),
+    [teams, teamStats],
+  );
+
   const currentPlayer = remaining[0] ?? null;
 
   const spin = () => {
-    if (!currentPlayer || spinning || teams.length === 0) return;
+    if (!currentPlayer || spinning || eligibleTeams.length === 0) return;
     setSpinning(true);
     setResult(null);
 
-    const teamIndex = Math.floor(Math.random() * teams.length);
-    const team = teams[teamIndex];
+    const teamIndex = Math.floor(Math.random() * eligibleTeams.length);
+    const team = eligibleTeams[teamIndex];
     const segment = 360 / teams.length;
-    const target = 360 * 5 + teamIndex * segment + segment / 2;
+    const fullIndex = teams.findIndex((t) => t.id === team.id);
+    const target = 360 * 5 + fullIndex * segment + segment / 2;
 
     setRotation((r) => r + target);
 
     setTimeout(() => {
       setSpinning(false);
+      const err = onAssign(currentPlayer.id, team.name);
+      if (err) {
+        alert(err);
+        return;
+      }
       setResult({ player: currentPlayer, team });
-      onAssign(currentPlayer.id, team.name);
     }, 4200);
   };
 
@@ -71,6 +82,7 @@ export function LotteryWheel({ players, teams, onAssign }: Props) {
         >
           {teams.map((t, i) => {
             const angle = (360 / teams.length) * i;
+            const full = (teamStats.get(t.name)?.bought ?? 0) >= t.maxPlayers;
             return (
               <div
                 key={t.id}
@@ -78,7 +90,7 @@ export function LotteryWheel({ players, teams, onAssign }: Props) {
                 style={{ transform: `rotate(${angle}deg)` }}
               >
                 <span
-                  className={`rounded-full bg-gradient-to-r ${SEGMENT_COLORS[i % SEGMENT_COLORS.length]} px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow`}
+                  className={`rounded-full bg-gradient-to-r ${SEGMENT_COLORS[i % SEGMENT_COLORS.length]} px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow ${full ? "opacity-40" : ""}`}
                   style={{ transform: `rotate(${-angle - rotation}deg)` }}
                 >
                   {t.name.split(" ")[0]}
@@ -94,11 +106,11 @@ export function LotteryWheel({ players, teams, onAssign }: Props) {
         <motion.button
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
-          disabled={spinning}
+          disabled={spinning || eligibleTeams.length === 0}
           onClick={spin}
           className="mt-8 rounded-xl bg-gradient-to-r from-[oklch(0.8_0.16_85)] to-[oklch(0.7_0.18_70)] px-8 py-3 font-display font-bold uppercase tracking-wider text-black disabled:opacity-50"
         >
-          {spinning ? "Spinning…" : "Spin the Wheel"}
+          {spinning ? "Spinning…" : eligibleTeams.length === 0 ? "All teams full" : "Spin the Wheel"}
         </motion.button>
       </div>
 

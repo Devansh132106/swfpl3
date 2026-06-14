@@ -1,7 +1,7 @@
 import { j as jsxRuntimeExports } from "../_libs/react.mjs";
 import { L as Link } from "../_libs/tanstack__react-router.mjs";
 import { F as FloatingParticles } from "./FloatingParticles-BsaonRbR.mjs";
-import { A as AUCTION_META } from "./router-gBAoY8fN.mjs";
+import { A as AUCTION_META } from "./router-BUqAvXv2.mjs";
 import "../_libs/seroval.mjs";
 import { m as motion } from "../_libs/framer-motion.mjs";
 import "../_libs/tanstack__router-core.mjs";
@@ -18,7 +18,7 @@ import "stream";
 import "../_libs/isbot.mjs";
 import "../_libs/tanstack__query-core.mjs";
 import "../_libs/tanstack__react-query.mjs";
-import "./server-Bge7SKfi.mjs";
+import "./server-D7up-uxF.mjs";
 import "node:async_hooks";
 import "../_libs/h3-v2.mjs";
 import "../_libs/rou3.mjs";
@@ -38,10 +38,10 @@ const cards = [{
   tagline: "Women's championship draft — the next icons."
 }, {
   type: "kids-u11",
-  tagline: "Young stars aged 11 and under — the future begins here."
+  tagline: "U11 lottery — 3 teams of 6 players each."
 }, {
   type: "kids-u14",
-  tagline: "Rising talent aged 14 and under — build the next generation."
+  tagline: "U15 draft — 3 teams of 6 players each."
 }];
 function Landing() {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("main", { className: "relative min-h-screen overflow-hidden stadium-bg animate-gradient-pan", children: [

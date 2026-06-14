@@ -19,8 +19,8 @@ const cards: { type: AuctionType; tagline: string }[] = [
   { type: "open", tagline: "Main league draft for every athlete in the open category." },
   { type: "veteran", tagline: "Legends and seasoned pros battle for the squad." },
   { type: "female", tagline: "Women's championship draft — the next icons." },
-  { type: "kids-u11", tagline: "Young stars aged 11 and under — the future begins here." },
-  { type: "kids-u14", tagline: "Rising talent aged 14 and under — build the next generation." },
+  { type: "kids-u11", tagline: "U11 lottery — 3 teams of 6 players each." },
+  { type: "kids-u14", tagline: "U15 draft — 3 teams of 6 players each." },
 ];
 
 function Landing() {

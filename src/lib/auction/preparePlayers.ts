@@ -12,10 +12,7 @@ export function isGoalkeeperRole(role: string): boolean {
 
 export function isSeniorPlayer(name: string): boolean {
   const n = normalizePersonName(name);
-  return SENIOR_PLAYER_NAMES.some((s) => {
-    const sn = normalizePersonName(s);
-    return n === sn || n.includes(sn) || sn.includes(n);
-  });
+  return SENIOR_PLAYER_NAMES.some((s) => normalizePersonName(s) === n);
 }
 
 export function assignPlayerGroup(player: Pick<Player, "name" | "role">): PlayerGroup {
@@ -153,4 +150,39 @@ export function findNextAvailable(players: Player[], afterIndex: number): number
 
 export function findFirstAvailable(players: Player[]): number {
   return players.findIndex((p) => p.status === "AVAILABLE");
+}
+
+/** Next player index after a sale/unsold — respects group phases, then reopens unsold. */
+export function resolveNextIndex(
+  players: Player[],
+  afterIndex: number,
+  activeGroup: PlayerGroup | null,
+  rules: AuctionRules,
+): { index: number; activeGroup: PlayerGroup | null; reopen?: Player[]; complete?: boolean } {
+  if (activeGroup && rules.groups?.includes(activeGroup)) {
+    const nextInGroup = findNextInGroup(players, activeGroup, afterIndex);
+    if (nextInGroup >= 0) return { index: nextInGroup, activeGroup };
+
+    const groupIdx = rules.groups.indexOf(activeGroup);
+    for (let g = groupIdx + 1; g < rules.groups.length; g++) {
+      const first = findFirstInGroup(players, rules.groups[g]);
+      if (first >= 0) return { index: first, activeGroup: rules.groups[g] };
+    }
+  } else {
+    const next = findNextAvailable(players, afterIndex);
+    if (next >= 0) return { index: next, activeGroup };
+  }
+
+  const unsold = countUnsold(players);
+  if (unsold > 0 && rules.reopenUnsold) {
+    const reopened = players.map((p) =>
+      p.status === "UNSOLD" ? { ...p, status: "AVAILABLE" as const, soldPrice: null, team: null } : p,
+    );
+    const firstGroup = rules.groups?.[0] ?? null;
+    const first = firstGroup ? findFirstInGroup(reopened, firstGroup) : findFirstAvailable(reopened);
+    return { index: first >= 0 ? first : afterIndex, activeGroup: firstGroup, reopen: reopened };
+  }
+
+  const allDone = !players.some((p) => p.status === "AVAILABLE") && unsold === 0;
+  return { index: afterIndex, activeGroup, complete: allDone };
 }

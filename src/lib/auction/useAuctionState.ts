@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AuctionRules } from "@/config/auctionRules";
 import {
-  countAvailableInGroup,
-  countUnsold,
   findFirstAvailable,
   findFirstInGroup,
-  findNextAvailable,
-  findNextInGroup,
+  resolveNextIndex,
   validateBid,
 } from "./preparePlayers";
 import type { Player, PlayerGroup, SaleRecord, Team, TeamStats } from "./types";
@@ -108,52 +105,20 @@ export function useAuctionState(
 
   const teamStats = useMemo(() => computeTeamStats(players, teams), [players, teams]);
 
-  const advanceWithinPhase = useCallback(
-    (ps: Player[], idx: number, group: PlayerGroup | null) => {
-      if (group && rules.groups?.includes(group)) {
-        const next = findNextInGroup(ps, group, idx);
-        if (next >= 0) return next;
-        return idx;
-      }
-      const next = findNextAvailable(ps, idx);
-      return next >= 0 ? next : idx;
-    },
-    [rules.groups],
-  );
-
-  const tryAdvanceGroupOrReopen = useCallback(
-    (ps: Player[]) => {
-      if (rules.groups?.length && activeGroup) {
-        const remaining = countAvailableInGroup(ps, activeGroup);
-        if (remaining > 0) return;
-
-        const groupIdx = rules.groups.indexOf(activeGroup);
-        const nextGroup = rules.groups[groupIdx + 1];
-        if (nextGroup) {
-          setActiveGroup(nextGroup);
-          const first = findFirstInGroup(ps, nextGroup);
-          if (first >= 0) setCurrentIndex(first);
-          return;
-        }
-      }
-
-      const unsold = countUnsold(ps);
-      if (unsold > 0 && rules.reopenUnsold) {
-        const reopened = ps.map((p) =>
-          p.status === "UNSOLD" ? { ...p, status: "AVAILABLE" as const, soldPrice: null, team: null } : p,
-        );
-        setPlayers(reopened);
+  const applyAdvance = useCallback(
+    (ps: Player[], afterIndex: number) => {
+      const result = resolveNextIndex(ps, afterIndex, activeGroup, rules);
+      if (result.reopen) {
+        setPlayers(result.reopen);
         setAuctionRound((r) => r + 1);
-        const firstGroup = rules.groups?.[0] ?? null;
-        setActiveGroup(firstGroup);
-        const first = firstGroup ? findFirstInGroup(reopened, firstGroup) : findFirstAvailable(reopened);
-        if (first >= 0) setCurrentIndex(first);
+        setActiveGroup(result.activeGroup);
+        setCurrentIndex(result.index);
+        setAuctionComplete(false);
         return;
       }
-
-      if (countUnsold(ps) === 0 && !ps.some((p) => p.status === "AVAILABLE")) {
-        setAuctionComplete(true);
-      }
+      if (result.activeGroup !== activeGroup) setActiveGroup(result.activeGroup);
+      setCurrentIndex(result.index);
+      if (result.complete) setAuctionComplete(true);
     },
     [activeGroup, rules],
   );
@@ -184,15 +149,23 @@ export function useAuctionState(
           jerseySize: opts.jerseySize || p.jerseySize,
         } : p);
         const idx = updated.findIndex((p) => p.id === prev.id);
-        const nextIdx = advanceWithinPhase(updated, idx, activeGroup);
-        setCurrentIndex(nextIdx);
-        setTimeout(() => tryAdvanceGroupOrReopen(updated), 0);
+        const result = resolveNextIndex(updated, idx, activeGroup, rules);
+        if (result.reopen) {
+          setAuctionRound((r) => r + 1);
+          setActiveGroup(result.activeGroup);
+          setCurrentIndex(result.index);
+          setAuctionComplete(false);
+          return result.reopen;
+        }
+        if (result.activeGroup !== activeGroup) setActiveGroup(result.activeGroup);
+        setCurrentIndex(result.index);
+        if (result.complete) setAuctionComplete(true);
         return updated;
       });
       setHistory((h) => [...h, record]);
       return null;
     },
-    [currentPlayer, teams, teamStats, rules, activeGroup, advanceWithinPhase, tryAdvanceGroupOrReopen],
+    [currentPlayer, teams, teamStats, rules, activeGroup],
   );
 
   const markUnsold = useCallback(() => {
@@ -208,12 +181,20 @@ export function useAuctionState(
     setPlayers((ps) => {
       const updated = ps.map((p) => p.id === prev.id ? { ...p, status: "UNSOLD" as const, soldPrice: null, team: null } : p);
       const idx = updated.findIndex((p) => p.id === prev.id);
-      const nextIdx = advanceWithinPhase(updated, idx, activeGroup);
-      setCurrentIndex(nextIdx);
-      setTimeout(() => tryAdvanceGroupOrReopen(updated), 0);
+      const result = resolveNextIndex(updated, idx, activeGroup, rules);
+      if (result.reopen) {
+        setAuctionRound((r) => r + 1);
+        setActiveGroup(result.activeGroup);
+        setCurrentIndex(result.index);
+        setAuctionComplete(false);
+        return result.reopen;
+      }
+      if (result.activeGroup !== activeGroup) setActiveGroup(result.activeGroup);
+      setCurrentIndex(result.index);
+      if (result.complete) setAuctionComplete(true);
       return updated;
     });
-  }, [currentPlayer, activeGroup, advanceWithinPhase, tryAdvanceGroupOrReopen]);
+  }, [currentPlayer, activeGroup, rules]);
 
   const undo = useCallback(() => {
     setHistory((h) => {
@@ -231,8 +212,8 @@ export function useAuctionState(
   }, [players]);
 
   const nextPlayer = useCallback(() => {
-    setCurrentIndex((i) => advanceWithinPhase(players, i, activeGroup));
-  }, [players, activeGroup, advanceWithinPhase]);
+    applyAdvance(players, currentIndex);
+  }, [players, currentIndex, applyAdvance]);
 
   const goToPlayer = useCallback((id: string) => {
     const idx = players.findIndex((p) => p.id === id);
@@ -250,12 +231,30 @@ export function useAuctionState(
   }, [initialPlayers, rules]);
 
   const assignLottery = useCallback((playerId: string, teamName: string) => {
-    setPlayers((ps) => ps.map((p) =>
-      p.id === playerId ? { ...p, status: "SOLD" as const, soldPrice: 0, team: teamName } : p,
-    ));
-    const remaining = players.filter((p) => p.id !== playerId && p.status === "AVAILABLE");
-    if (remaining.length === 0) setAuctionComplete(true);
-  }, [players]);
+    const team = teams.find((t) => t.name === teamName);
+    if (!team) return "Invalid team";
+    const stats = teamStats.get(team.name) ?? { bought: 0, spent: 0, seniorCount: 0, players: [] };
+    if (stats.bought >= team.maxPlayers) return `${team.name} already has ${team.maxPlayers} players`;
+
+    setPlayers((ps) => {
+      const updated = ps.map((p) =>
+        p.id === playerId ? { ...p, status: "SOLD" as const, soldPrice: 0, team: teamName } : p,
+      );
+      const idx = updated.findIndex((p) => p.id === playerId);
+      const result = resolveNextIndex(updated, idx, activeGroup, rules);
+      if (result.reopen) {
+        setAuctionRound((r) => r + 1);
+        setActiveGroup(result.activeGroup);
+        setCurrentIndex(result.index);
+        setAuctionComplete(false);
+        return result.reopen;
+      }
+      setCurrentIndex(result.index);
+      if (result.complete) setAuctionComplete(true);
+      return updated;
+    });
+    return null;
+  }, [teams, teamStats, activeGroup, rules]);
 
   return {
     players, history, currentIndex, currentPlayer,

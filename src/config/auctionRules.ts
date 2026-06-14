@@ -14,6 +14,7 @@ export interface AuctionRules {
   lotteryMode?: boolean;
 }
 
+/** Only these players belong in Group Senior — everyone else (non-GK) is Group Player. */
 export const SENIOR_PLAYER_NAMES = [
   "Subho",
   "Joydip Basak",
@@ -39,8 +40,8 @@ export const AUCTION_RULES: Record<AuctionType, AuctionRules> = {
   veteran: {
     basePrice: 5000,
     budget: LAKH,
-    minPlayers: 6,
-    maxPlayers: 6,
+    minPlayers: 8,
+    maxPlayers: 8,
     reopenUnsold: true,
   },
   female: {
@@ -53,15 +54,15 @@ export const AUCTION_RULES: Record<AuctionType, AuctionRules> = {
   "kids-u14": {
     basePrice: 5000,
     budget: LAKH,
-    minPlayers: 5,
-    maxPlayers: 15,
+    minPlayers: 6,
+    maxPlayers: 6,
     reopenUnsold: true,
   },
   "kids-u11": {
     basePrice: 0,
     budget: LAKH,
-    minPlayers: 0,
-    maxPlayers: 99,
+    minPlayers: 6,
+    maxPlayers: 6,
     reopenUnsold: false,
     lotteryMode: true,
   },

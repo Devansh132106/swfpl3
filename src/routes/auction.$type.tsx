@@ -32,7 +32,7 @@ export const Route = createFileRoute("/auction/$type")({
     const playersUrl = SHEETS[meta.sheetKey];
     if (!playersUrl) return;
     await context.queryClient.ensureQueryData({
-      queryKey: ["players", type, "v4"],
+      queryKey: ["players", type, "v6"],
       queryFn: () => loadPlayers({ data: { url: playersUrl, auctionType: type } }),
       staleTime: 5 * 60_000,
     });
@@ -78,7 +78,7 @@ function AuctionPage() {
   const rules = getAuctionRules(type);
 
   const playersQ = useQuery({
-    queryKey: ["players", type, "v4"],
+    queryKey: ["players", type, "v6"],
     queryFn: () => loadPlayers({ data: { url: playersUrl, auctionType: type } }),
     enabled: !!playersUrl,
     staleTime: 5 * 60_000,
@@ -235,7 +235,7 @@ function AuctionFloor({
           {/* MIDDLE — details, bidding, player list */}
           <section className="space-y-4">
             {rules.lotteryMode ? (
-              <LotteryWheel players={players} teams={teams} onAssign={assignLottery} />
+              <LotteryWheel players={players} teams={teams} teamStats={teamStats} onAssign={assignLottery} />
             ) : (
               <>
                 <PlayerDetailsHeader player={currentPlayer} />
@@ -379,7 +379,7 @@ function RulesBanner({ rules }: { rules: ReturnType<typeof getAuctionRules> }) {
   if (rules.lotteryMode) {
     return (
       <div className="glass rounded-xl px-4 py-2 text-xs text-muted-foreground">
-        <strong className="text-foreground">Lottery mode</strong> — players are randomly assigned to teams via the wheel.
+        <strong className="text-foreground">Lottery mode</strong> — 3 teams × {rules.maxPlayers} players, randomly assigned via the wheel.
       </div>
     );
   }

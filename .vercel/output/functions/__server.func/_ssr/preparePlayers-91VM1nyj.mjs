@@ -3,7 +3,6 @@ const SENIOR_PLAYER_NAMES = [
   "Joydip Basak",
   "Rajroop Ghoshal",
   "Puspendu Karmakar",
-  "Anandarup",
   "Prosenjit Saha",
   "SWARUP MOZUMDER",
   "Debopratim Das"
@@ -21,8 +20,8 @@ const AUCTION_RULES = {
   veteran: {
     basePrice: 5e3,
     budget: LAKH,
-    minPlayers: 6,
-    maxPlayers: 6,
+    minPlayers: 8,
+    maxPlayers: 8,
     reopenUnsold: true
   },
   female: {
@@ -35,15 +34,15 @@ const AUCTION_RULES = {
   "kids-u14": {
     basePrice: 5e3,
     budget: LAKH,
-    minPlayers: 5,
-    maxPlayers: 15,
+    minPlayers: 6,
+    maxPlayers: 6,
     reopenUnsold: true
   },
   "kids-u11": {
     basePrice: 0,
     budget: LAKH,
-    minPlayers: 0,
-    maxPlayers: 99,
+    minPlayers: 6,
+    maxPlayers: 6,
     reopenUnsold: false,
     lotteryMode: true
   }
@@ -127,10 +126,7 @@ function isGoalkeeperRole(role) {
 }
 function isSeniorPlayer(name) {
   const n = normalizePersonName(name);
-  return SENIOR_PLAYER_NAMES.some((s) => {
-    const sn = normalizePersonName(s);
-    return n === sn || n.includes(sn) || sn.includes(n);
-  });
+  return SENIOR_PLAYER_NAMES.some((s) => normalizePersonName(s) === n);
 }
 function assignPlayerGroup(player) {
   if (isGoalkeeperRole(player.role)) return "goalkeeper";
@@ -205,9 +201,6 @@ function preparePlayers(players, teams, rules, assignGroups = !!rules.groups?.le
 function countUnsold(players) {
   return players.filter((p) => p.status === "UNSOLD").length;
 }
-function countAvailableInGroup(players, group) {
-  return players.filter((p) => p.group === group && p.status === "AVAILABLE").length;
-}
 function findNextInGroup(players, group, afterIndex) {
   for (let j = afterIndex + 1; j < players.length; j++) {
     const p = players[j];
@@ -234,17 +227,39 @@ function findNextAvailable(players, afterIndex) {
 function findFirstAvailable(players) {
   return players.findIndex((p) => p.status === "AVAILABLE");
 }
+function resolveNextIndex(players, afterIndex, activeGroup, rules) {
+  if (activeGroup && rules.groups?.includes(activeGroup)) {
+    const nextInGroup = findNextInGroup(players, activeGroup, afterIndex);
+    if (nextInGroup >= 0) return { index: nextInGroup, activeGroup };
+    const groupIdx = rules.groups.indexOf(activeGroup);
+    for (let g = groupIdx + 1; g < rules.groups.length; g++) {
+      const first = findFirstInGroup(players, rules.groups[g]);
+      if (first >= 0) return { index: first, activeGroup: rules.groups[g] };
+    }
+  } else {
+    const next = findNextAvailable(players, afterIndex);
+    if (next >= 0) return { index: next, activeGroup };
+  }
+  const unsold = countUnsold(players);
+  if (unsold > 0 && rules.reopenUnsold) {
+    const reopened = players.map(
+      (p) => p.status === "UNSOLD" ? { ...p, status: "AVAILABLE", soldPrice: null, team: null } : p
+    );
+    const firstGroup = rules.groups?.[0] ?? null;
+    const first = firstGroup ? findFirstInGroup(reopened, firstGroup) : findFirstAvailable(reopened);
+    return { index: first >= 0 ? first : afterIndex, activeGroup: firstGroup, reopen: reopened };
+  }
+  const allDone = !players.some((p) => p.status === "AVAILABLE") && unsold === 0;
+  return { index: afterIndex, activeGroup, complete: allDone };
+}
 export {
   GROUP_LABELS as G,
   getTeamsForAuction as a,
-  findNextAvailable as b,
-  countAvailableInGroup as c,
-  findFirstInGroup as d,
+  findFirstAvailable as b,
   eligibleTeams as e,
-  findNextInGroup as f,
+  findFirstInGroup as f,
   getAuctionRules as g,
-  countUnsold as h,
-  findFirstAvailable as i,
   preparePlayers as p,
+  resolveNextIndex as r,
   validateBid as v
 };

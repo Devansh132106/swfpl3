@@ -41,8 +41,8 @@ export const AUCTION_META: Record<
     sheetKey: "kidsU11Players",
   },
   "kids-u14": {
-    title: "Kids (U14)",
-    subtitle: "14 and under draft",
+    title: "Kids (U15)",
+    subtitle: "15 and under draft",
     accent: "from-[oklch(0.78_0.2_130)] to-[oklch(0.68_0.22_110)]",
     sheetKey: "kidsU14Players",
   },
