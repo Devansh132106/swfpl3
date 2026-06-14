@@ -76,7 +76,19 @@ export function useAuctionState(
           setAuctionComplete(false);
         } else {
           const byId = new Map(s.players.map((p) => [p.id, p]));
-          const merged = initialPlayers.map((p) => byId.get(p.id) ?? p);
+          const merged = initialPlayers.map((p) => {
+            const cached = byId.get(p.id);
+            if (!cached) return p;
+            return {
+              ...p,
+              status: cached.status,
+              soldPrice: cached.soldPrice,
+              team: cached.team,
+              jerseyName: cached.jerseyName || p.jerseyName,
+              jerseyNumber: cached.jerseyNumber || p.jerseyNumber,
+              jerseySize: cached.jerseySize || p.jerseySize,
+            };
+          });
           setPlayers(merged);
           setHistory(s.history ?? []);
           setActiveGroup(s.activeGroup ?? initialGroup(rules));
