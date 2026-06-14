@@ -1,4 +1,82 @@
-import type { Player, Team } from "./types";
+import { SENIOR_PLAYER_NAMES } from "@/config/auctionRules";
+import type { Player, PlayerGroup, Team, TeamStats } from "./types";
+import type { AuctionRules } from "@/config/auctionRules";
+
+export function normalizePersonName(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export function isGoalkeeperRole(role: string): boolean {
+  return /^goal\s*keeper$/i.test(role.trim());
+}
+
+export function isSeniorPlayer(name: string): boolean {
+  const n = normalizePersonName(name);
+  return SENIOR_PLAYER_NAMES.some((s) => {
+    const sn = normalizePersonName(s);
+    return n === sn || n.includes(sn) || sn.includes(n);
+  });
+}
+
+export function assignPlayerGroup(player: Pick<Player, "name" | "role">): PlayerGroup {
+  if (isGoalkeeperRole(player.role)) return "goalkeeper";
+  if (isSeniorPlayer(player.name)) return "senior";
+  return "player";
+}
+
+export function validateBid(
+  player: Player,
+  team: Team,
+  price: number,
+  rules: AuctionRules,
+  stats: TeamStats,
+): string | null {
+  if (price < rules.basePrice) {
+    return `Minimum bid is ₹${rules.basePrice.toLocaleString()}`;
+  }
+  if (stats.spent + price > team.budget) {
+    return `${team.name} only has ₹${(team.budget - stats.spent).toLocaleString()} left`;
+  }
+  if (stats.bought >= team.maxPlayers) {
+    return `${team.name} already has ${team.maxPlayers} players (max)`;
+  }
+  if (player.group === "goalkeeper" && team.cannotBidGoalkeepers) {
+    return `${team.name} cannot bid — captain is the goalkeeper`;
+  }
+  const maxSenior = team.maxSeniorPlayers ?? 1;
+  if (player.group === "senior" && stats.seniorCount >= maxSenior) {
+    return `${team.name} already picked a Group Senior player`;
+  }
+  return null;
+}
+
+export function eligibleTeams(
+  player: Player,
+  teams: Team[],
+  teamStats: Map<string, TeamStats>,
+  rules: AuctionRules,
+  price: number,
+): Team[] {
+  return teams.filter((t) => {
+    const stats = teamStats.get(t.name) ?? { bought: 0, spent: 0, seniorCount: 0, players: [] };
+    return validateBid(player, t, price, rules, stats) === null;
+  });
+}
+
+function excludedNames(teams: Team[]): Set<string> {
+  const out = new Set<string>();
+  for (const t of teams) {
+    if (t.captain) out.add(normalizePersonName(t.captain));
+    if (t.mentor) out.add(normalizePersonName(t.mentor));
+  }
+  return out;
+}
+
+const GROUP_ORDER: Record<PlayerGroup, number> = {
+  goalkeeper: 0,
+  player: 1,
+  senior: 2,
+};
 
 const ROLE_ORDER: Record<string, number> = {
   goalkeeper: 0,
@@ -12,40 +90,67 @@ function roleSortKey(role: string): number {
   return ROLE_ORDER[role.trim().toLowerCase()] ?? 99;
 }
 
-function normalizePersonName(name: string): string {
-  return name.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-function excludedNames(teams: Team[]): Set<string> {
-  const out = new Set<string>();
-  for (const t of teams) {
-    if (t.captain) out.add(normalizePersonName(t.captain));
-    if (t.mentor) out.add(normalizePersonName(t.mentor));
-  }
-  return out;
-}
-
-export interface PreparePlayersOptions {
-  basePrice?: number;
-}
-
-/** Filter captains/mentors, apply base price, sort by role (GK → Attack → Midfield → Defense). */
+/** Filter captains/mentors, assign groups, apply pricing, sort for auction. */
 export function preparePlayers(
   players: Player[],
   teams: Team[],
-  options: PreparePlayersOptions = {},
+  rules: AuctionRules,
+  assignGroups = !!rules.groups?.length,
 ): Player[] {
   const skip = excludedNames(teams);
 
   const filtered = players.filter((p) => !skip.has(normalizePersonName(p.name)));
 
-  const withPricing = options.basePrice != null
-    ? filtered.map((p) => ({ ...p, basePrice: options.basePrice! }))
-    : filtered;
+  const withMeta = filtered.map((p) => ({
+    ...p,
+    basePrice: rules.basePrice,
+    group: assignGroups ? assignPlayerGroup(p) : p.group,
+  }));
 
-  return [...withPricing].sort((a, b) => {
+  return [...withMeta].sort((a, b) => {
+    if (a.group && b.group && a.group !== b.group) {
+      return GROUP_ORDER[a.group] - GROUP_ORDER[b.group];
+    }
     const byRole = roleSortKey(a.role) - roleSortKey(b.role);
     if (byRole !== 0) return byRole;
     return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
   });
+}
+
+export function countUnsold(players: Player[]): number {
+  return players.filter((p) => p.status === "UNSOLD").length;
+}
+
+export function countAvailableInGroup(players: Player[], group: PlayerGroup): number {
+  return players.filter((p) => p.group === group && p.status === "AVAILABLE").length;
+}
+
+export function findNextInGroup(players: Player[], group: PlayerGroup, afterIndex: number): number {
+  for (let j = afterIndex + 1; j < players.length; j++) {
+    const p = players[j];
+    if (p.group === group && p.status === "AVAILABLE") return j;
+  }
+  for (let j = 0; j < players.length; j++) {
+    const p = players[j];
+    if (p.group === group && p.status === "AVAILABLE") return j;
+  }
+  return -1;
+}
+
+export function findFirstInGroup(players: Player[], group: PlayerGroup): number {
+  return players.findIndex((p) => p.group === group && p.status === "AVAILABLE");
+}
+
+export function findNextAvailable(players: Player[], afterIndex: number): number {
+  for (let j = afterIndex + 1; j < players.length; j++) {
+    if (players[j].status === "AVAILABLE") return j;
+  }
+  for (let j = 0; j < players.length; j++) {
+    if (players[j].status === "AVAILABLE") return j;
+  }
+  return -1;
+}
+
+export function findFirstAvailable(players: Player[]): number {
+  return players.findIndex((p) => p.status === "AVAILABLE");
 }

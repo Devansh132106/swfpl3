@@ -10,7 +10,7 @@ interface Props {
 }
 
 export function TeamCard({ team, bought, spent, onClick }: Props) {
-  const remaining = Math.max(team.maxPlayers - bought, 0);
+  const needMore = Math.max(team.minPlayers - bought, 0);
   const purseLeft = Math.max(team.budget - spent, 0);
   return (
     <motion.button
@@ -42,8 +42,8 @@ export function TeamCard({ team, bought, spent, onClick }: Props) {
         </div>
       </div>
       <div className="relative mt-3 grid grid-cols-3 gap-1.5 text-center">
-        <Pill label="Slots" value={remaining} />
-        <Pill label="Bought" value={bought} />
+        <Pill label="Slots" value={`${bought}/${team.maxPlayers}`} />
+        <Pill label="Need" value={needMore > 0 ? needMore : "✓"} />
         <Pill label="Purse" value={formatPurse(purseLeft)} />
       </div>
     </motion.button>

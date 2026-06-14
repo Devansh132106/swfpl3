@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
+import { GROUP_LABELS } from "@/config/auctionRules";
 import type { Player } from "@/lib/auction/types";
 
 export function PlayerDetailsHeader({ player }: { player: Player | null }) {
@@ -13,6 +14,11 @@ export function PlayerDetailsHeader({ player }: { player: Player | null }) {
           className="glass-strong rounded-2xl p-5 text-center"
         >
           <h2 className="font-display text-3xl font-black tracking-wide">{player.name}</h2>
+          {player.group && (
+            <div className="mt-2 inline-block rounded-full bg-[oklch(0.7_0.2_150)]/20 px-3 py-0.5 text-xs font-semibold uppercase tracking-wider text-[oklch(0.85_0.18_150)]">
+              {GROUP_LABELS[player.group]}
+            </div>
+          )}
           <div className="mt-3 inline-flex items-center gap-4 rounded-full glass px-5 py-2">
             <span className="text-xs uppercase tracking-widest text-muted-foreground">Base Price</span>
             <span className="font-display text-xl font-bold text-[oklch(0.85_0.17_85)]">

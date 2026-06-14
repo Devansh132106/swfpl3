@@ -1,5 +1,5 @@
-import { T as TSS_SERVER_FUNCTION, c as createServerFn } from "./server-CzT3Q6f0.mjs";
-import { g as getTeamsForAuction } from "./teams-BDuzl9NL.mjs";
+import { T as TSS_SERVER_FUNCTION, c as createServerFn } from "./server-Bge7SKfi.mjs";
+import { p as preparePlayers, g as getAuctionRules, a as getTeamsForAuction } from "./preparePlayers-BEU7JsqS.mjs";
 import { P as Papa } from "../_libs/papaparse.mjs";
 import { n as normalizePhotoUrl } from "./drivePhoto-BlqciLZ2.mjs";
 import "../_libs/seroval.mjs";
@@ -30,43 +30,6 @@ var createServerRpc = (serverFnMeta, splitImportFn) => {
     [TSS_SERVER_FUNCTION]: true
   });
 };
-const AUCTION_RULES = {
-  open: { basePrice: 500 }
-};
-function getAuctionRules(type) {
-  return AUCTION_RULES[type] ?? {};
-}
-const ROLE_ORDER = {
-  goalkeeper: 0,
-  attack: 1,
-  midfield: 2,
-  defense: 3,
-  defence: 3
-};
-function roleSortKey(role) {
-  return ROLE_ORDER[role.trim().toLowerCase()] ?? 99;
-}
-function normalizePersonName(name) {
-  return name.trim().toLowerCase().replace(/\s+/g, " ");
-}
-function excludedNames(teams) {
-  const out = /* @__PURE__ */ new Set();
-  for (const t of teams) {
-    if (t.captain) out.add(normalizePersonName(t.captain));
-    if (t.mentor) out.add(normalizePersonName(t.mentor));
-  }
-  return out;
-}
-function preparePlayers(players, teams, options = {}) {
-  const skip = excludedNames(teams);
-  const filtered = players.filter((p) => !skip.has(normalizePersonName(p.name)));
-  const withPricing = options.basePrice != null ? filtered.map((p) => ({ ...p, basePrice: options.basePrice })) : filtered;
-  return [...withPricing].sort((a, b) => {
-    const byRole = roleSortKey(a.role) - roleSortKey(b.role);
-    if (byRole !== 0) return byRole;
-    return a.name.localeCompare(b.name, void 0, { sensitivity: "base" });
-  });
-}
 function toCsvUrl(url) {
   if (!url) return "";
   if (url.includes("output=csv") || url.includes("tqx=out:csv")) return url;

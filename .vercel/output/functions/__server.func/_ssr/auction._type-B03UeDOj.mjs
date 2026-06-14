@@ -1,8 +1,8 @@
 import { j as jsxRuntimeExports, r as reactExports } from "../_libs/react.mjs";
 import { L as Link } from "../_libs/tanstack__react-router.mjs";
 import { u as useQuery } from "../_libs/tanstack__react-query.mjs";
-import { R as Route$1, S as SHEETS, A as AUCTION_META, l as loadPlayers } from "./router-Cr7W4Qta.mjs";
-import { g as getTeamsForAuction } from "./teams-BDuzl9NL.mjs";
+import { R as Route$1, S as SHEETS, A as AUCTION_META, l as loadPlayers } from "./router-gBAoY8fN.mjs";
+import { e as eligibleTeams, G as GROUP_LABELS, g as getAuctionRules, a as getTeamsForAuction, f as findNextInGroup, b as findNextAvailable, c as countAvailableInGroup, d as findFirstInGroup, h as countUnsold, i as findFirstAvailable, v as validateBid } from "./preparePlayers-BEU7JsqS.mjs";
 import { u as utils, w as writeFileSync } from "../_libs/xlsx.mjs";
 import { e as extractDriveFileId, a as driveImageProxyUrl, d as driveImageDirectUrls } from "./drivePhoto-BlqciLZ2.mjs";
 import { F as FloatingParticles } from "./FloatingParticles-BsaonRbR.mjs";
@@ -21,7 +21,7 @@ import "async_hooks";
 import "stream";
 import "../_libs/isbot.mjs";
 import "../_libs/tanstack__query-core.mjs";
-import "./server-CzT3Q6f0.mjs";
+import "./server-Bge7SKfi.mjs";
 import "node:async_hooks";
 import "../_libs/h3-v2.mjs";
 import "../_libs/rou3.mjs";
@@ -29,12 +29,33 @@ import "../_libs/srvx.mjs";
 import "../_libs/zod.mjs";
 import "../_libs/motion-dom.mjs";
 import "../_libs/motion-utils.mjs";
-const KEY = (auction) => `auction-state-v1:${auction}`;
-function useAuctionState(auction, initialPlayers, teams) {
+const KEY = (auction) => `auction-state-v2:${auction}`;
+function initialGroup(rules) {
+  return rules.groups?.[0] ?? null;
+}
+function computeTeamStats(players, teams) {
+  const stats = /* @__PURE__ */ new Map();
+  for (const t of teams) stats.set(t.name, { bought: 0, spent: 0, seniorCount: 0, players: [] });
+  for (const p of players) {
+    if (p.status === "SOLD" && p.team) {
+      const s = stats.get(p.team) ?? { bought: 0, spent: 0, seniorCount: 0, players: [] };
+      s.bought += 1;
+      s.spent += p.soldPrice ?? 0;
+      if (p.group === "senior") s.seniorCount += 1;
+      s.players.push(p);
+      stats.set(p.team, s);
+    }
+  }
+  return stats;
+}
+function useAuctionState(auction, initialPlayers, teams, rules) {
   const [players, setPlayers] = reactExports.useState(initialPlayers);
   const [history, setHistory] = reactExports.useState([]);
   const [currentIndex, setCurrentIndex] = reactExports.useState(0);
   const [paused, setPaused] = reactExports.useState(false);
+  const [activeGroup, setActiveGroup] = reactExports.useState(() => initialGroup(rules));
+  const [auctionRound, setAuctionRound] = reactExports.useState(1);
+  const [auctionComplete, setAuctionComplete] = reactExports.useState(false);
   const [hydrated, setHydrated] = reactExports.useState(false);
   reactExports.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -49,43 +70,98 @@ function useAuctionState(auction, initialPlayers, teams) {
         if (s.players.length === 0) {
           setPlayers(initialPlayers);
           setHistory([]);
-          setCurrentIndex(0);
-          setPaused(false);
+          setCurrentIndex(findStartIndex(initialPlayers, initialGroup(rules)));
+          setActiveGroup(initialGroup(rules));
+          setAuctionRound(1);
+          setAuctionComplete(false);
         } else {
           const byId = new Map(s.players.map((p) => [p.id, p]));
-          setPlayers(initialPlayers.map((p) => byId.get(p.id) ?? p));
+          const merged = initialPlayers.map((p) => byId.get(p.id) ?? p);
+          setPlayers(merged);
           setHistory(s.history ?? []);
-          setCurrentIndex(Math.min(s.currentIndex ?? 0, Math.max(initialPlayers.length - 1, 0)));
-          setPaused(!!s.paused);
+          setActiveGroup(s.activeGroup ?? initialGroup(rules));
+          setAuctionRound(s.auctionRound ?? 1);
+          setAuctionComplete(!!s.auctionComplete);
+          setCurrentIndex(Math.min(s.currentIndex ?? 0, Math.max(merged.length - 1, 0)));
         }
       } else {
         setPlayers(initialPlayers);
+        setCurrentIndex(findStartIndex(initialPlayers, initialGroup(rules)));
       }
     } catch {
       setPlayers(initialPlayers);
+      setCurrentIndex(findStartIndex(initialPlayers, initialGroup(rules)));
     }
     setHydrated(true);
-  }, [auction, initialPlayers]);
+  }, [auction, initialPlayers, rules.groups]);
   reactExports.useEffect(() => {
     if (!hydrated || typeof window === "undefined") return;
-    const data = { players, history, currentIndex, paused };
+    const data = {
+      players,
+      history,
+      currentIndex,
+      paused,
+      activeGroup,
+      auctionRound,
+      auctionComplete
+    };
     localStorage.setItem(KEY(auction), JSON.stringify(data));
-  }, [auction, players, history, currentIndex, paused, hydrated]);
+  }, [auction, players, history, currentIndex, paused, activeGroup, auctionRound, auctionComplete, hydrated]);
   const currentPlayer = players[currentIndex] ?? null;
-  const advance = reactExports.useCallback(() => {
-    setCurrentIndex((i) => {
-      for (let j = i + 1; j < players.length; j++) {
-        if (players[j].status === "AVAILABLE") return j;
+  const teamStats = reactExports.useMemo(() => computeTeamStats(players, teams), [players, teams]);
+  const advanceWithinPhase = reactExports.useCallback(
+    (ps, idx, group) => {
+      if (group && rules.groups?.includes(group)) {
+        const next2 = findNextInGroup(ps, group, idx);
+        if (next2 >= 0) return next2;
+        return idx;
       }
-      for (let j = 0; j < players.length; j++) {
-        if (players[j].status === "AVAILABLE") return j;
+      const next = findNextAvailable(ps, idx);
+      return next >= 0 ? next : idx;
+    },
+    [rules.groups]
+  );
+  const tryAdvanceGroupOrReopen = reactExports.useCallback(
+    (ps) => {
+      if (rules.groups?.length && activeGroup) {
+        const remaining = countAvailableInGroup(ps, activeGroup);
+        if (remaining > 0) return;
+        const groupIdx = rules.groups.indexOf(activeGroup);
+        const nextGroup = rules.groups[groupIdx + 1];
+        if (nextGroup) {
+          setActiveGroup(nextGroup);
+          const first = findFirstInGroup(ps, nextGroup);
+          if (first >= 0) setCurrentIndex(first);
+          return;
+        }
       }
-      return Math.min(i + 1, players.length - 1);
-    });
-  }, [players]);
+      const unsold = countUnsold(ps);
+      if (unsold > 0 && rules.reopenUnsold) {
+        const reopened = ps.map(
+          (p) => p.status === "UNSOLD" ? { ...p, status: "AVAILABLE", soldPrice: null, team: null } : p
+        );
+        setPlayers(reopened);
+        setAuctionRound((r) => r + 1);
+        const firstGroup = rules.groups?.[0] ?? null;
+        setActiveGroup(firstGroup);
+        const first = firstGroup ? findFirstInGroup(reopened, firstGroup) : findFirstAvailable(reopened);
+        if (first >= 0) setCurrentIndex(first);
+        return;
+      }
+      if (countUnsold(ps) === 0 && !ps.some((p) => p.status === "AVAILABLE")) {
+        setAuctionComplete(true);
+      }
+    },
+    [activeGroup, rules]
+  );
   const sellPlayer = reactExports.useCallback(
     (opts) => {
-      if (!currentPlayer) return;
+      if (!currentPlayer) return "No player selected";
+      const team = teams.find((t) => t.name === opts.teamName);
+      if (!team) return "Select a team";
+      const stats = teamStats.get(team.name) ?? { bought: 0, spent: 0, seniorCount: 0 };
+      const err = validateBid(currentPlayer, team, opts.soldPrice, rules, stats);
+      if (err) return err;
       const prev = currentPlayer;
       const record = {
         playerId: prev.id,
@@ -100,19 +176,26 @@ function useAuctionState(auction, initialPlayers, teams) {
         newTeam: opts.teamName,
         timestamp: Date.now()
       };
-      setPlayers((ps) => ps.map((p) => p.id === prev.id ? {
-        ...p,
-        status: "SOLD",
-        soldPrice: opts.soldPrice,
-        team: opts.teamName,
-        jerseyName: opts.jerseyName || p.jerseyName,
-        jerseyNumber: opts.jerseyNumber || p.jerseyNumber,
-        jerseySize: opts.jerseySize || p.jerseySize
-      } : p));
+      setPlayers((ps) => {
+        const updated = ps.map((p) => p.id === prev.id ? {
+          ...p,
+          status: "SOLD",
+          soldPrice: opts.soldPrice,
+          team: opts.teamName,
+          jerseyName: opts.jerseyName || p.jerseyName,
+          jerseyNumber: opts.jerseyNumber || p.jerseyNumber,
+          jerseySize: opts.jerseySize || p.jerseySize
+        } : p);
+        const idx = updated.findIndex((p) => p.id === prev.id);
+        const nextIdx = advanceWithinPhase(updated, idx, activeGroup);
+        setCurrentIndex(nextIdx);
+        setTimeout(() => tryAdvanceGroupOrReopen(updated), 0);
+        return updated;
+      });
       setHistory((h) => [...h, record]);
-      setTimeout(advance, 0);
+      return null;
     },
-    [currentPlayer, advance]
+    [currentPlayer, teams, teamStats, rules, activeGroup, advanceWithinPhase, tryAdvanceGroupOrReopen]
   );
   const markUnsold = reactExports.useCallback(() => {
     if (!currentPlayer) return;
@@ -130,9 +213,15 @@ function useAuctionState(auction, initialPlayers, teams) {
       newTeam: null,
       timestamp: Date.now()
     }]);
-    setPlayers((ps) => ps.map((p) => p.id === prev.id ? { ...p, status: "UNSOLD", soldPrice: null, team: null } : p));
-    setTimeout(advance, 0);
-  }, [currentPlayer, advance]);
+    setPlayers((ps) => {
+      const updated = ps.map((p) => p.id === prev.id ? { ...p, status: "UNSOLD", soldPrice: null, team: null } : p);
+      const idx = updated.findIndex((p) => p.id === prev.id);
+      const nextIdx = advanceWithinPhase(updated, idx, activeGroup);
+      setCurrentIndex(nextIdx);
+      setTimeout(() => tryAdvanceGroupOrReopen(updated), 0);
+      return updated;
+    });
+  }, [currentPlayer, activeGroup, advanceWithinPhase, tryAdvanceGroupOrReopen]);
   const undo = reactExports.useCallback(() => {
     setHistory((h) => {
       if (!h.length) return h;
@@ -148,49 +237,60 @@ function useAuctionState(auction, initialPlayers, teams) {
       } : p));
       const idx = players.findIndex((p) => p.id === last.playerId);
       if (idx >= 0) setCurrentIndex(idx);
+      setAuctionComplete(false);
       return h.slice(0, -1);
     });
   }, [players]);
-  const nextPlayer = reactExports.useCallback(() => advance(), [advance]);
+  const nextPlayer = reactExports.useCallback(() => {
+    setCurrentIndex((i) => advanceWithinPhase(players, i, activeGroup));
+  }, [players, activeGroup, advanceWithinPhase]);
   const goToPlayer = reactExports.useCallback((id) => {
     const idx = players.findIndex((p) => p.id === id);
     if (idx >= 0) setCurrentIndex(idx);
   }, [players]);
   const reset = reactExports.useCallback(() => {
-    setPlayers(initialPlayers.map((p) => ({ ...p, status: "AVAILABLE", soldPrice: null, team: null })));
+    const fresh = initialPlayers.map((p) => ({ ...p, status: "AVAILABLE", soldPrice: null, team: null }));
+    setPlayers(fresh);
     setHistory([]);
-    setCurrentIndex(0);
-  }, [initialPlayers]);
-  const teamStats = reactExports.useMemo(() => {
-    const stats = /* @__PURE__ */ new Map();
-    for (const t of teams) stats.set(t.name, { bought: 0, spent: 0, players: [] });
-    for (const p of players) {
-      if (p.status === "SOLD" && p.team) {
-        const s = stats.get(p.team) ?? { bought: 0, spent: 0, players: [] };
-        s.bought += 1;
-        s.spent += p.soldPrice ?? 0;
-        s.players.push(p);
-        stats.set(p.team, s);
-      }
-    }
-    return stats;
-  }, [players, teams]);
+    setActiveGroup(initialGroup(rules));
+    setAuctionRound(1);
+    setAuctionComplete(false);
+    setCurrentIndex(findStartIndex(fresh, initialGroup(rules)));
+  }, [initialPlayers, rules]);
+  const assignLottery = reactExports.useCallback((playerId, teamName) => {
+    setPlayers((ps) => ps.map(
+      (p) => p.id === playerId ? { ...p, status: "SOLD", soldPrice: 0, team: teamName } : p
+    ));
+    const remaining = players.filter((p) => p.id !== playerId && p.status === "AVAILABLE");
+    if (remaining.length === 0) setAuctionComplete(true);
+  }, [players]);
   return {
     players,
-    setPlayers,
     history,
     currentIndex,
     currentPlayer,
     paused,
     setPaused,
     teamStats,
+    activeGroup,
+    auctionRound,
+    auctionComplete,
     sellPlayer,
     markUnsold,
     undo,
     nextPlayer,
     goToPlayer,
     reset,
-    exportBackup: () => JSON.stringify({ players, history, currentIndex, paused }, null, 2),
+    assignLottery,
+    exportBackup: () => JSON.stringify({
+      players,
+      history,
+      currentIndex,
+      paused,
+      activeGroup,
+      auctionRound,
+      auctionComplete
+    }, null, 2),
     importBackup: (json) => {
       try {
         const s = JSON.parse(json);
@@ -198,11 +298,22 @@ function useAuctionState(auction, initialPlayers, teams) {
         setHistory(s.history ?? []);
         setCurrentIndex(s.currentIndex ?? 0);
         setPaused(!!s.paused);
+        setActiveGroup(s.activeGroup ?? initialGroup(rules));
+        setAuctionRound(s.auctionRound ?? 1);
+        setAuctionComplete(!!s.auctionComplete);
       } catch {
         alert("Invalid backup JSON");
       }
     }
   };
+}
+function findStartIndex(players, group) {
+  if (group) {
+    const idx2 = findFirstInGroup(players, group);
+    if (idx2 >= 0) return idx2;
+  }
+  const idx = findFirstAvailable(players);
+  return idx >= 0 ? idx : 0;
 }
 function downloadAuctionResults(auctionLabel, teams, players) {
   const wb = utils.book_new();
@@ -313,6 +424,7 @@ function PlayerDetailsHeader({ player }) {
       className: "glass-strong rounded-2xl p-5 text-center",
       children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "font-display text-3xl font-black tracking-wide", children: player.name }),
+        player.group && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-2 inline-block rounded-full bg-[oklch(0.7_0.2_150)]/20 px-3 py-0.5 text-xs font-semibold uppercase tracking-wider text-[oklch(0.85_0.18_150)]", children: GROUP_LABELS[player.group] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-3 inline-flex items-center gap-4 rounded-full glass px-5 py-2", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs uppercase tracking-widest text-muted-foreground", children: "Base Price" }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-display text-xl font-bold text-[oklch(0.85_0.17_85)]", children: [
@@ -333,6 +445,150 @@ function PlayerDetailsHeader({ player }) {
     },
     player.id
   ) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "rounded-2xl glass p-6 text-center text-muted-foreground", children: "Select a player" }) });
+}
+function GroupPhaseBar({
+  activeGroup,
+  auctionRound,
+  auctionComplete,
+  remainingInGroup,
+  unsoldCount
+}) {
+  if (!activeGroup) return null;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass-strong rounded-2xl px-4 py-3", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-wrap items-center justify-between gap-2", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-[10px] uppercase tracking-[0.25em] text-muted-foreground", children: "Current Phase" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-display text-lg font-bold text-[oklch(0.85_0.18_150)]", children: GROUP_LABELS[activeGroup] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-wrap gap-3 text-xs text-muted-foreground", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+          "Round ",
+          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { className: "text-foreground", children: auctionRound })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+          "Left in group: ",
+          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { className: "text-foreground", children: remainingInGroup })
+        ] }),
+        unsoldCount > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+          "Unsold total: ",
+          /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { className: "text-destructive", children: unsoldCount })
+        ] })
+      ] })
+    ] }),
+    auctionComplete && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-2 rounded-lg bg-[oklch(0.7_0.2_150)]/20 px-3 py-1.5 text-center text-sm font-semibold text-[oklch(0.85_0.18_150)]", children: "All players sold — auction complete" }),
+    !auctionComplete && unsoldCount > 0 && remainingInGroup === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-2 text-xs text-muted-foreground", children: "Unsold players will return in the next round until everyone is sold." })
+  ] });
+}
+const SEGMENT_COLORS = [
+  "from-[oklch(0.65_0.24_25)] to-[oklch(0.55_0.22_15)]",
+  "from-[oklch(0.7_0.2_150)] to-[oklch(0.55_0.2_170)]",
+  "from-[oklch(0.65_0.2_240)] to-[oklch(0.5_0.2_260)]",
+  "from-[oklch(0.78_0.18_90)] to-[oklch(0.65_0.2_70)]",
+  "from-[oklch(0.72_0.18_340)] to-[oklch(0.62_0.22_310)]",
+  "from-[oklch(0.75_0.18_200)] to-[oklch(0.65_0.22_220)]"
+];
+function LotteryWheel({ players, teams, onAssign }) {
+  const remaining = reactExports.useMemo(() => players.filter((p) => p.status === "AVAILABLE"), [players]);
+  const [spinning, setSpinning] = reactExports.useState(false);
+  const [rotation, setRotation] = reactExports.useState(0);
+  const [result, setResult] = reactExports.useState(null);
+  const currentPlayer = remaining[0] ?? null;
+  const spin = () => {
+    if (!currentPlayer || spinning || teams.length === 0) return;
+    setSpinning(true);
+    setResult(null);
+    const teamIndex = Math.floor(Math.random() * teams.length);
+    const team = teams[teamIndex];
+    const segment = 360 / teams.length;
+    const target = 360 * 5 + teamIndex * segment + segment / 2;
+    setRotation((r) => r + target);
+    setTimeout(() => {
+      setSpinning(false);
+      setResult({ player: currentPlayer, team });
+      onAssign(currentPlayer.id, team.name);
+    }, 4200);
+  };
+  if (!remaining.length) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass-strong rounded-3xl p-10 text-center", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h2", { className: "font-display text-2xl font-bold text-[oklch(0.85_0.18_150)]", children: "Lottery Complete" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-2 text-muted-foreground", children: "Every player has been assigned to a team." })
+    ] });
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "space-y-6", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass-strong rounded-2xl p-4 text-center", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "text-[10px] uppercase tracking-widest text-muted-foreground", children: "Next draw" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "font-display text-2xl font-bold", children: currentPlayer.name }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "text-sm text-muted-foreground", children: [
+        remaining.length,
+        " players remaining"
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative mx-auto flex max-w-md flex-col items-center", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute -top-2 z-10 text-2xl", children: "▼" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        motion.div,
+        {
+          animate: { rotate: rotation },
+          transition: { duration: spinning ? 4 : 0, ease: [0.2, 0.8, 0.2, 1] },
+          className: "relative h-72 w-72 rounded-full border-4 border-white/20 shadow-2xl",
+          style: { background: "conic-gradient(from 0deg, oklch(0.5 0.2 150), oklch(0.5 0.2 240), oklch(0.5 0.2 25), oklch(0.5 0.2 90))" },
+          children: [
+            teams.map((t, i) => {
+              const angle = 360 / teams.length * i;
+              return /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "div",
+                {
+                  className: "absolute inset-0 flex items-start justify-center pt-6",
+                  style: { transform: `rotate(${angle}deg)` },
+                  children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "span",
+                    {
+                      className: `rounded-full bg-gradient-to-r ${SEGMENT_COLORS[i % SEGMENT_COLORS.length]} px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow`,
+                      style: { transform: `rotate(${-angle - rotation}deg)` },
+                      children: t.name.split(" ")[0]
+                    }
+                  )
+                },
+                t.id
+              );
+            }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "absolute inset-0 m-auto h-16 w-16 rounded-full glass-strong grid place-items-center font-display text-xs font-bold", children: "SPIN" })
+          ]
+        }
+      ),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(
+        motion.button,
+        {
+          whileHover: { scale: 1.03 },
+          whileTap: { scale: 0.97 },
+          disabled: spinning,
+          onClick: spin,
+          className: "mt-8 rounded-xl bg-gradient-to-r from-[oklch(0.8_0.16_85)] to-[oklch(0.7_0.18_70)] px-8 py-3 font-display font-bold uppercase tracking-wider text-black disabled:opacity-50",
+          children: spinning ? "Spinning…" : "Spin the Wheel"
+        }
+      )
+    ] }),
+    result && !spinning && /* @__PURE__ */ jsxRuntimeExports.jsxs(
+      motion.div,
+      {
+        initial: { opacity: 0, y: 10 },
+        animate: { opacity: 1, y: 0 },
+        className: "glass-strong rounded-2xl p-4 text-center",
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "font-display text-lg font-bold", children: result.player.name }),
+          " → ",
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-[oklch(0.85_0.18_150)]", children: result.team.name })
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-2xl p-4", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { className: "mb-2 text-xs uppercase tracking-widest text-muted-foreground", children: "Assignments" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "max-h-48 space-y-1 overflow-y-auto text-sm", children: players.filter((p) => p.status === "SOLD").map((p) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex justify-between rounded-lg bg-white/5 px-3 py-1.5", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: p.name }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-muted-foreground", children: p.team })
+      ] }, p.id)) })
+    ] })
+  ] });
 }
 function LiveBar({ player, currentBid }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "rounded-2xl glass-strong overflow-hidden", children: [
@@ -372,7 +628,7 @@ function formatPurse(amount) {
   return `₹${amount.toLocaleString()}`;
 }
 function TeamCard({ team, bought, spent, onClick }) {
-  const remaining = Math.max(team.maxPlayers - bought, 0);
+  const needMore = Math.max(team.minPlayers - bought, 0);
   const purseLeft = Math.max(team.budget - spent, 0);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(
     motion.button,
@@ -405,8 +661,8 @@ function TeamCard({ team, bought, spent, onClick }) {
           ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "relative mt-3 grid grid-cols-3 gap-1.5 text-center", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Pill, { label: "Slots", value: remaining }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Pill, { label: "Bought", value: bought }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Pill, { label: "Slots", value: `${bought}/${team.maxPlayers}` }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Pill, { label: "Need", value: needMore > 0 ? needMore : "✓" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(Pill, { label: "Purse", value: formatPurse(purseLeft) })
         ] })
       ]
@@ -511,8 +767,9 @@ function AuctionPage() {
   const meta = AUCTION_META[type];
   const playersUrl = SHEETS[meta.sheetKey];
   const teams = getTeamsForAuction(type);
+  const rules = getAuctionRules(type);
   const playersQ = useQuery({
-    queryKey: ["players", type, "v3"],
+    queryKey: ["players", type, "v4"],
     queryFn: () => loadPlayers({
       data: {
         url: playersUrl,
@@ -529,21 +786,26 @@ function AuctionPage() {
   if (players.length === 0) {
     return /* @__PURE__ */ jsxRuntimeExports.jsx(EmptyPlayersScreen, { auctionType: type });
   }
-  return /* @__PURE__ */ jsxRuntimeExports.jsx(AuctionFloor, { auctionKey: type, label: meta.title, players, teams });
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(AuctionFloor, { auctionKey: type, label: meta.title, players, teams, rules });
 }
 function AuctionFloor({
   auctionKey,
   label,
   players: initialPlayers,
-  teams
+  teams,
+  rules
 }) {
-  const state = useAuctionState(auctionKey, initialPlayers, teams);
+  const state = useAuctionState(auctionKey, initialPlayers, teams, rules);
   const {
     currentPlayer,
     players,
     teamStats,
     paused,
-    setPaused
+    setPaused,
+    activeGroup,
+    auctionRound,
+    auctionComplete,
+    assignLottery
   } = state;
   const [soldPrice, setSoldPrice] = reactExports.useState("");
   const [teamName, setTeamName] = reactExports.useState("");
@@ -552,17 +814,31 @@ function AuctionFloor({
   const [jSize, setJSize] = reactExports.useState("");
   reactExports.useEffect(() => {
     if (!currentPlayer) return;
-    setSoldPrice(String(currentPlayer.soldPrice ?? currentPlayer.basePrice ?? ""));
+    setSoldPrice(String(currentPlayer.soldPrice ?? currentPlayer.basePrice ?? rules.basePrice));
     setTeamName(currentPlayer.team ?? "");
     setJName(currentPlayer.jerseyName ?? "");
     setJNum(currentPlayer.jerseyNumber ?? "");
     setJSize(currentPlayer.jerseySize ?? "");
-  }, [currentPlayer?.id]);
+  }, [currentPlayer?.id, rules.basePrice]);
   const [search, setSearch] = reactExports.useState("");
   const [roleFilter, setRoleFilter] = reactExports.useState("All");
   const [statusFilter, setStatusFilter] = reactExports.useState("All");
+  const remainingInGroup = reactExports.useMemo(() => {
+    if (!activeGroup) return 0;
+    return players.filter((p) => p.group === activeGroup && p.status === "AVAILABLE").length;
+  }, [players, activeGroup]);
+  const unsoldCount = reactExports.useMemo(() => players.filter((p) => p.status === "UNSOLD").length, [players]);
+  const bidPrice = Number(soldPrice) || rules.basePrice;
+  const eligible = reactExports.useMemo(() => {
+    if (!currentPlayer || rules.lotteryMode) return teams;
+    return eligibleTeams(currentPlayer, teams, teamStats, rules, bidPrice);
+  }, [currentPlayer, teams, teamStats, rules, bidPrice]);
+  reactExports.useEffect(() => {
+    if (teamName && !eligible.some((t) => t.name === teamName)) setTeamName("");
+  }, [eligible, teamName]);
   const filteredPlayers = reactExports.useMemo(() => {
     return players.filter((p) => {
+      if (activeGroup && p.group !== activeGroup && statusFilter === "Remaining") return false;
       if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (roleFilter !== "All" && p.role !== roleFilter) return false;
       if (statusFilter === "Remaining" && p.status !== "AVAILABLE") return false;
@@ -570,20 +846,21 @@ function AuctionFloor({
       if (statusFilter === "Unsold" && p.status !== "UNSOLD") return false;
       return true;
     });
-  }, [players, search, roleFilter, statusFilter]);
+  }, [players, search, roleFilter, statusFilter, activeGroup]);
   const [modalTeam, setModalTeam] = reactExports.useState(null);
   const fileInputRef = reactExports.useRef(null);
   const handleSell = () => {
     if (paused) return alert("Auction is paused");
     const price = Number(soldPrice);
     if (!price || !teamName) return alert("Enter sold price and team");
-    state.sellPlayer({
+    const err = state.sellPlayer({
       soldPrice: price,
       teamName,
       jerseyName: jName,
       jerseyNumber: jNum,
       jerseySize: jSize
     });
+    if (err) alert(err);
   };
   const handleImport = (file) => {
     const reader = new FileReader();
@@ -620,32 +897,39 @@ function AuctionFloor({
           }, children: "Reset" })
         ] })
       ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(RulesBanner, { rules }),
+      activeGroup && !rules.lotteryMode && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(GroupPhaseBar, { activeGroup, auctionRound, auctionComplete, remainingInGroup, unsoldCount }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3 xl:items-start", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "xl:sticky xl:top-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(PlayerPortrait, { player: currentPlayer }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "space-y-4", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(PlayerDetailsHeader, { player: currentPlayer }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(LiveBar, { player: currentPlayer, currentBid: Number(soldPrice) || null }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass-strong rounded-2xl p-5", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-1 gap-3 md:grid-cols-2", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(Field, { label: "Sold Price", children: /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "number", value: soldPrice, onChange: (e) => setSoldPrice(e.target.value), placeholder: "0", className: "w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]" }) }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(Field, { label: "Team", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { value: teamName, onChange: (e) => setTeamName(e.target.value), className: "w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Select team…" }),
-                teams.map((t) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: t.name, children: t.name }, t.id))
-              ] }) }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(Field, { label: "Jersey Name", children: /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: jName, onChange: (e) => setJName(e.target.value), className: "w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]" }) }),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-3", children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(Field, { label: "Jersey No", children: /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: jNum, onChange: (e) => setJNum(e.target.value), className: "w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]" }) }),
-                /* @__PURE__ */ jsxRuntimeExports.jsx(Field, { label: "Jersey Size", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { value: jSize, onChange: (e) => setJSize(e.target.value), className: "w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]", children: [
-                  /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "—" }),
-                  ["XS", "S", "M", "L", "XL", "XXL", "XXXL"].map((s) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: s, children: s }, s))
-                ] }) })
+          rules.lotteryMode ? /* @__PURE__ */ jsxRuntimeExports.jsx(LotteryWheel, { players, teams, onAssign: assignLottery }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(PlayerDetailsHeader, { player: currentPlayer }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(LiveBar, { player: currentPlayer, currentBid: Number(soldPrice) || null }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass-strong rounded-2xl p-5", children: [
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-1 gap-3 md:grid-cols-2", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(Field, { label: `Sold Price (min ₹${rules.basePrice.toLocaleString()})`, children: /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "number", value: soldPrice, onChange: (e) => setSoldPrice(e.target.value), placeholder: String(rules.basePrice), min: rules.basePrice, className: "w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]" }) }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs(Field, { label: "Team", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { value: teamName, onChange: (e) => setTeamName(e.target.value), className: "w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]", children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "Select team…" }),
+                    eligible.map((t) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: t.name, children: t.name }, t.id))
+                  ] }),
+                  currentPlayer && eligible.length === 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "mt-1 text-xs text-destructive", children: "No team can bid on this player at this price." })
+                ] }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(Field, { label: "Jersey Name", children: /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: jName, onChange: (e) => setJName(e.target.value), className: "w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]" }) }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-2 gap-3", children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Field, { label: "Jersey No", children: /* @__PURE__ */ jsxRuntimeExports.jsx("input", { value: jNum, onChange: (e) => setJNum(e.target.value), className: "w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]" }) }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Field, { label: "Jersey Size", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("select", { value: jSize, onChange: (e) => setJSize(e.target.value), className: "w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]", children: [
+                    /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: "", children: "—" }),
+                    ["XS", "S", "M", "L", "XL", "XXL", "XXXL"].map((s) => /* @__PURE__ */ jsxRuntimeExports.jsx("option", { value: s, children: s }, s))
+                  ] }) })
+                ] })
+              ] }),
+              /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-5 grid grid-cols-2 gap-2 md:grid-cols-4", children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx(NeonButton, { onClick: handleSell, variant: "success", big: true, disabled: auctionComplete, children: "Sell Player" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(NeonButton, { onClick: state.markUnsold, variant: "danger", big: true, disabled: auctionComplete, children: "Unsold" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(NeonButton, { onClick: state.nextPlayer, big: true, children: "Next Player" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx(NeonButton, { onClick: state.undo, variant: "ghost", big: true, children: "↺ Undo" })
               ] })
-            ] }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-5 grid grid-cols-2 gap-2 md:grid-cols-4", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(NeonButton, { onClick: handleSell, variant: "success", big: true, children: "Sell Player" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(NeonButton, { onClick: state.markUnsold, variant: "danger", big: true, children: "Unsold" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(NeonButton, { onClick: state.nextPlayer, big: true, children: "Next Player" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx(NeonButton, { onClick: state.undo, variant: "ghost", big: true, children: "↺ Undo" })
             ] })
           ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-2xl p-4", children: [
@@ -662,7 +946,8 @@ function AuctionFloor({
                   /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-xs text-muted-foreground", children: [
                     "· ",
                     p.role
-                  ] })
+                  ] }),
+                  p.group && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "ml-1 text-[9px] uppercase text-[oklch(0.75_0.15_150)]", children: GROUP_LABELS[p.group]?.replace("Group ", "") ?? p.group })
                 ] }),
                 /* @__PURE__ */ jsxRuntimeExports.jsx(StatusChip, { status: p.status })
               ] }, p.id)),
@@ -692,6 +977,34 @@ function AuctionFloor({
     paused && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pointer-events-none fixed inset-x-0 top-4 z-30 flex justify-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "rounded-full bg-destructive/80 px-4 py-1.5 text-xs font-bold uppercase tracking-widest backdrop-blur", children: "⏸ Auction Paused" }) })
   ] });
 }
+function RulesBanner({
+  rules
+}) {
+  if (rules.lotteryMode) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-xl px-4 py-2 text-xs text-muted-foreground", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { className: "text-foreground", children: "Lottery mode" }),
+      " — players are randomly assigned to teams via the wheel."
+    ] });
+  }
+  const playerRange = rules.minPlayers === rules.maxPlayers ? `${rules.maxPlayers} players` : `${rules.minPlayers}–${rules.maxPlayers} players`;
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-xl px-4 py-2 text-xs text-muted-foreground", children: [
+    "Min bid ",
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("strong", { className: "text-foreground", children: [
+      "₹",
+      rules.basePrice.toLocaleString()
+    ] }),
+    " · ",
+    "Budget ",
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("strong", { className: "text-foreground", children: [
+      "₹",
+      rules.budget.toLocaleString()
+    ] }),
+    " · ",
+    "Pick ",
+    /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { className: "text-foreground", children: playerRange }),
+    rules.reopenUnsold && " · Unsold players re-auctioned until all sold"
+  ] });
+}
 function Field({
   label,
   children
@@ -715,7 +1028,8 @@ function NeonButton({
   children,
   onClick,
   variant = "primary",
-  big
+  big,
+  disabled
 }) {
   const styles = {
     primary: "bg-gradient-to-r from-[oklch(0.5_0.15_220)] to-[oklch(0.45_0.15_260)] text-white hover:shadow-[0_0_24px_oklch(0.6_0.2_240/0.6)]",
@@ -724,11 +1038,11 @@ function NeonButton({
     gold: "bg-gradient-to-r from-[oklch(0.8_0.16_85)] to-[oklch(0.7_0.18_70)] text-black hover:shadow-[0_0_24px_oklch(0.85_0.17_85/0.7)]",
     ghost: "bg-white/5 hover:bg-white/10 text-foreground border border-white/10"
   };
-  return /* @__PURE__ */ jsxRuntimeExports.jsx(motion.button, { whileHover: {
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(motion.button, { whileHover: disabled ? void 0 : {
     y: -2
-  }, whileTap: {
+  }, whileTap: disabled ? void 0 : {
     scale: 0.96
-  }, onClick, className: `rounded-xl font-semibold uppercase tracking-wider transition-shadow ${styles[variant]} ${big ? "px-4 py-3 text-sm" : "px-3 py-2 text-xs"}`, children });
+  }, onClick, disabled, className: `rounded-xl font-semibold uppercase tracking-wider transition-shadow disabled:opacity-40 disabled:cursor-not-allowed ${styles[variant]} ${big ? "px-4 py-3 text-sm" : "px-3 py-2 text-xs"}`, children });
 }
 function LoadingScreen() {
   return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid min-h-screen place-items-center stadium-bg", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass-strong rounded-2xl p-10 text-center", children: [
@@ -750,7 +1064,7 @@ function EmptyPlayersScreen({
   auctionType
 }) {
   const clearCache = () => {
-    localStorage.removeItem(`auction-state-v1:${auctionType}`);
+    localStorage.removeItem(`auction-state-v2:${auctionType}`);
     window.location.reload();
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid min-h-screen place-items-center stadium-bg p-6", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass-strong max-w-md rounded-2xl p-8 text-center", children: [

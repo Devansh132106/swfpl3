@@ -1,5 +1,6 @@
 export type Role = "Attack" | "Midfield" | "Defense" | "Goalkeeper" | string;
 export type PlayerStatus = "AVAILABLE" | "SOLD" | "UNSOLD" | string;
+export type PlayerGroup = "goalkeeper" | "player" | "senior";
 
 export interface Player {
   id: string;
@@ -13,6 +14,8 @@ export interface Player {
   status: PlayerStatus;
   soldPrice: number | null;
   team: string | null;
+  /** Open auction phase group. */
+  group?: PlayerGroup;
 }
 
 export interface Team {
@@ -20,10 +23,20 @@ export interface Team {
   name: string;
   captain: string;
   mentor: string;
+  minPlayers: number;
   maxPlayers: number;
   logoUrl: string;
-  /** Total points budget for the squad (e.g. 50000). */
   budget: number;
+  /** e.g. Netherlands — captain is the GK. */
+  cannotBidGoalkeepers?: boolean;
+  maxSeniorPlayers?: number;
+}
+
+export interface TeamStats {
+  bought: number;
+  spent: number;
+  seniorCount: number;
+  players: Player[];
 }
 
 export interface SaleRecord {

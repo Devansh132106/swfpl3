@@ -3,12 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { AUCTION_META, AUCTION_TYPES, SHEETS, type AuctionType } from "@/config/sheets";
+import { getAuctionRules } from "@/config/auctionRules";
+import { GROUP_LABELS } from "@/config/auctionRules";
 import { getTeamsForAuction } from "@/config/teams";
 import { loadPlayers } from "@/lib/auction/players.fn";
+import { eligibleTeams } from "@/lib/auction/preparePlayers";
 import { useAuctionState } from "@/lib/auction/useAuctionState";
 import { downloadAuctionResults } from "@/lib/auction/excel";
 import { PlayerPortrait } from "@/components/auction/PlayerPortrait";
 import { PlayerDetailsHeader } from "@/components/auction/PlayerDetailsHeader";
+import { GroupPhaseBar } from "@/components/auction/GroupPhaseBar";
+import { LotteryWheel } from "@/components/auction/LotteryWheel";
 import { LiveBar } from "@/components/auction/LiveBar";
 import { TeamCard } from "@/components/auction/TeamCard";
 import { TeamModal } from "@/components/auction/TeamModal";
@@ -27,7 +32,7 @@ export const Route = createFileRoute("/auction/$type")({
     const playersUrl = SHEETS[meta.sheetKey];
     if (!playersUrl) return;
     await context.queryClient.ensureQueryData({
-      queryKey: ["players", type, "v3"],
+      queryKey: ["players", type, "v4"],
       queryFn: () => loadPlayers({ data: { url: playersUrl, auctionType: type } }),
       staleTime: 5 * 60_000,
     });
@@ -70,9 +75,10 @@ function AuctionPage() {
   const playersUrl = SHEETS[meta.sheetKey];
 
   const teams = getTeamsForAuction(type);
+  const rules = getAuctionRules(type);
 
   const playersQ = useQuery({
-    queryKey: ["players", type, "v3"],
+    queryKey: ["players", type, "v4"],
     queryFn: () => loadPlayers({ data: { url: playersUrl, auctionType: type } }),
     enabled: !!playersUrl,
     staleTime: 5 * 60_000,
@@ -94,15 +100,19 @@ function AuctionPage() {
       label={meta.title}
       players={players}
       teams={teams}
+      rules={rules}
     />
   );
 }
 
 function AuctionFloor({
-  auctionKey, label, players: initialPlayers, teams,
-}: { auctionKey: string; label: string; players: Player[]; teams: Team[] }) {
-  const state = useAuctionState(auctionKey, initialPlayers, teams);
-  const { currentPlayer, players, teamStats, paused, setPaused } = state;
+  auctionKey, label, players: initialPlayers, teams, rules,
+}: { auctionKey: string; label: string; players: Player[]; teams: Team[]; rules: ReturnType<typeof getAuctionRules> }) {
+  const state = useAuctionState(auctionKey, initialPlayers, teams, rules);
+  const {
+    currentPlayer, players, teamStats, paused, setPaused,
+    activeGroup, auctionRound, auctionComplete, assignLottery,
+  } = state;
 
   const [soldPrice, setSoldPrice] = useState<string>("");
   const [teamName, setTeamName] = useState<string>("");
@@ -113,19 +123,38 @@ function AuctionFloor({
   // Sync form fields with current player
   useEffect(() => {
     if (!currentPlayer) return;
-    setSoldPrice(String(currentPlayer.soldPrice ?? currentPlayer.basePrice ?? ""));
+    setSoldPrice(String(currentPlayer.soldPrice ?? currentPlayer.basePrice ?? rules.basePrice));
     setTeamName(currentPlayer.team ?? "");
     setJName(currentPlayer.jerseyName ?? "");
     setJNum(currentPlayer.jerseyNumber ?? "");
     setJSize(currentPlayer.jerseySize ?? "");
-  }, [currentPlayer?.id]); // eslint-disable-line
+  }, [currentPlayer?.id, rules.basePrice]); // eslint-disable-line
 
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("All");
   const [statusFilter, setStatusFilter] = useState<string>("All");
 
+  const remainingInGroup = useMemo(() => {
+    if (!activeGroup) return 0;
+    return players.filter((p) => p.group === activeGroup && p.status === "AVAILABLE").length;
+  }, [players, activeGroup]);
+
+  const unsoldCount = useMemo(() => players.filter((p) => p.status === "UNSOLD").length, [players]);
+
+  const bidPrice = Number(soldPrice) || rules.basePrice;
+
+  const eligible = useMemo(() => {
+    if (!currentPlayer || rules.lotteryMode) return teams;
+    return eligibleTeams(currentPlayer, teams, teamStats, rules, bidPrice);
+  }, [currentPlayer, teams, teamStats, rules, bidPrice]);
+
+  useEffect(() => {
+    if (teamName && !eligible.some((t) => t.name === teamName)) setTeamName("");
+  }, [eligible, teamName]);
+
   const filteredPlayers = useMemo(() => {
     return players.filter((p) => {
+      if (activeGroup && p.group !== activeGroup && statusFilter === "Remaining") return false;
       if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (roleFilter !== "All" && p.role !== roleFilter) return false;
       if (statusFilter === "Remaining" && p.status !== "AVAILABLE") return false;
@@ -133,7 +162,7 @@ function AuctionFloor({
       if (statusFilter === "Unsold" && p.status !== "UNSOLD") return false;
       return true;
     });
-  }, [players, search, roleFilter, statusFilter]);
+  }, [players, search, roleFilter, statusFilter, activeGroup]);
 
   const [modalTeam, setModalTeam] = useState<Team | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -142,7 +171,8 @@ function AuctionFloor({
     if (paused) return alert("Auction is paused");
     const price = Number(soldPrice);
     if (!price || !teamName) return alert("Enter sold price and team");
-    state.sellPlayer({ soldPrice: price, teamName, jerseyName: jName, jerseyNumber: jNum, jerseySize: jSize });
+    const err = state.sellPlayer({ soldPrice: price, teamName, jerseyName: jName, jerseyNumber: jNum, jerseySize: jSize });
+    if (err) alert(err);
   };
 
   const handleImport = (file: File) => {
@@ -182,6 +212,20 @@ function AuctionFloor({
           </div>
         </header>
 
+        <RulesBanner rules={rules} />
+
+        {activeGroup && !rules.lotteryMode && (
+          <div className="mt-4">
+            <GroupPhaseBar
+              activeGroup={activeGroup}
+              auctionRound={auctionRound}
+              auctionComplete={auctionComplete}
+              remainingInGroup={remainingInGroup}
+              unsoldCount={unsoldCount}
+            />
+          </div>
+        )}
+
         <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3 xl:items-start">
           {/* LEFT — player portrait */}
           <section className="xl:sticky xl:top-4">
@@ -190,55 +234,65 @@ function AuctionFloor({
 
           {/* MIDDLE — details, bidding, player list */}
           <section className="space-y-4">
-            <PlayerDetailsHeader player={currentPlayer} />
-            <LiveBar player={currentPlayer} currentBid={Number(soldPrice) || null} />
+            {rules.lotteryMode ? (
+              <LotteryWheel players={players} teams={teams} onAssign={assignLottery} />
+            ) : (
+              <>
+                <PlayerDetailsHeader player={currentPlayer} />
+                <LiveBar player={currentPlayer} currentBid={Number(soldPrice) || null} />
 
-            <div className="glass-strong rounded-2xl p-5">
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <Field label="Sold Price">
-                  <input
-                    type="number" value={soldPrice} onChange={(e) => setSoldPrice(e.target.value)}
-                    placeholder="0"
-                    className="w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]"
-                  />
-                </Field>
-                <Field label="Team">
-                  <select
-                    value={teamName} onChange={(e) => setTeamName(e.target.value)}
-                    className="w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]"
-                  >
-                    <option value="">Select team…</option>
-                    {teams.map((t) => (
-                      <option key={t.id} value={t.name}>{t.name}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Jersey Name">
-                  <input value={jName} onChange={(e) => setJName(e.target.value)}
-                    className="w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]" />
-                </Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Jersey No">
-                    <input value={jNum} onChange={(e) => setJNum(e.target.value)}
-                      className="w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]" />
-                  </Field>
-                  <Field label="Jersey Size">
-                    <select value={jSize} onChange={(e) => setJSize(e.target.value)}
-                      className="w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]">
-                      <option value="">—</option>
-                      {["XS","S","M","L","XL","XXL","XXXL"].map((s) => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </Field>
+                <div className="glass-strong rounded-2xl p-5">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <Field label={`Sold Price (min ₹${rules.basePrice.toLocaleString()})`}>
+                      <input
+                        type="number" value={soldPrice} onChange={(e) => setSoldPrice(e.target.value)}
+                        placeholder={String(rules.basePrice)}
+                        min={rules.basePrice}
+                        className="w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]"
+                      />
+                    </Field>
+                    <Field label="Team">
+                      <select
+                        value={teamName} onChange={(e) => setTeamName(e.target.value)}
+                        className="w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]"
+                      >
+                        <option value="">Select team…</option>
+                        {eligible.map((t) => (
+                          <option key={t.id} value={t.name}>{t.name}</option>
+                        ))}
+                      </select>
+                      {currentPlayer && eligible.length === 0 && (
+                        <p className="mt-1 text-xs text-destructive">No team can bid on this player at this price.</p>
+                      )}
+                    </Field>
+                    <Field label="Jersey Name">
+                      <input value={jName} onChange={(e) => setJName(e.target.value)}
+                        className="w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]" />
+                    </Field>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Jersey No">
+                        <input value={jNum} onChange={(e) => setJNum(e.target.value)}
+                          className="w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]" />
+                      </Field>
+                      <Field label="Jersey Size">
+                        <select value={jSize} onChange={(e) => setJSize(e.target.value)}
+                          className="w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]">
+                          <option value="">—</option>
+                          {["XS","S","M","L","XL","XXL","XXXL"].map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </Field>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-2 gap-2 md:grid-cols-4">
+                    <NeonButton onClick={handleSell} variant="success" big disabled={auctionComplete}>Sell Player</NeonButton>
+                    <NeonButton onClick={state.markUnsold} variant="danger" big disabled={auctionComplete}>Unsold</NeonButton>
+                    <NeonButton onClick={state.nextPlayer} big>Next Player</NeonButton>
+                    <NeonButton onClick={state.undo} variant="ghost" big>↺ Undo</NeonButton>
+                  </div>
                 </div>
-              </div>
-
-              <div className="mt-5 grid grid-cols-2 gap-2 md:grid-cols-4">
-                <NeonButton onClick={handleSell} variant="success" big>Sell Player</NeonButton>
-                <NeonButton onClick={state.markUnsold} variant="danger" big>Unsold</NeonButton>
-                <NeonButton onClick={state.nextPlayer} big>Next Player</NeonButton>
-                <NeonButton onClick={state.undo} variant="ghost" big>↺ Undo</NeonButton>
-              </div>
-            </div>
+              </>
+            )}
 
             {/* Player browser */}
             <div className="glass rounded-2xl p-4">
@@ -269,6 +323,11 @@ function AuctionFloor({
                       <span className="truncate">
                         <span className="font-medium">{p.name}</span>{" "}
                         <span className="text-xs text-muted-foreground">· {p.role}</span>
+                        {p.group && (
+                          <span className="ml-1 text-[9px] uppercase text-[oklch(0.75_0.15_150)]">
+                            {GROUP_LABELS[p.group]?.replace("Group ", "") ?? p.group}
+                          </span>
+                        )}
                       </span>
                       <StatusChip status={p.status} />
                     </button>
@@ -316,6 +375,27 @@ function AuctionFloor({
   );
 }
 
+function RulesBanner({ rules }: { rules: ReturnType<typeof getAuctionRules> }) {
+  if (rules.lotteryMode) {
+    return (
+      <div className="glass rounded-xl px-4 py-2 text-xs text-muted-foreground">
+        <strong className="text-foreground">Lottery mode</strong> — players are randomly assigned to teams via the wheel.
+      </div>
+    );
+  }
+  const playerRange = rules.minPlayers === rules.maxPlayers
+    ? `${rules.maxPlayers} players`
+    : `${rules.minPlayers}–${rules.maxPlayers} players`;
+  return (
+    <div className="glass rounded-xl px-4 py-2 text-xs text-muted-foreground">
+      Min bid <strong className="text-foreground">₹{rules.basePrice.toLocaleString()}</strong>
+      {" · "}Budget <strong className="text-foreground">₹{rules.budget.toLocaleString()}</strong>
+      {" · "}Pick <strong className="text-foreground">{playerRange}</strong>
+      {rules.reopenUnsold && " · Unsold players re-auctioned until all sold"}
+    </div>
+  );
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
@@ -335,8 +415,8 @@ function StatusChip({ status }: { status: string }) {
 }
 
 function NeonButton({
-  children, onClick, variant = "primary", big,
-}: { children: React.ReactNode; onClick?: () => void; variant?: "primary" | "success" | "danger" | "ghost" | "gold"; big?: boolean }) {
+  children, onClick, variant = "primary", big, disabled,
+}: { children: React.ReactNode; onClick?: () => void; variant?: "primary" | "success" | "danger" | "ghost" | "gold"; big?: boolean; disabled?: boolean }) {
   const styles: Record<string, string> = {
     primary: "bg-gradient-to-r from-[oklch(0.5_0.15_220)] to-[oklch(0.45_0.15_260)] text-white hover:shadow-[0_0_24px_oklch(0.6_0.2_240/0.6)]",
     success: "bg-gradient-to-r from-[oklch(0.65_0.2_150)] to-[oklch(0.55_0.22_165)] text-white hover:shadow-[0_0_24px_oklch(0.7_0.22_150/0.7)]",
@@ -346,9 +426,10 @@ function NeonButton({
   };
   return (
     <motion.button
-      whileHover={{ y: -2 }} whileTap={{ scale: 0.96 }}
+      whileHover={disabled ? undefined : { y: -2 }} whileTap={disabled ? undefined : { scale: 0.96 }}
       onClick={onClick}
-      className={`rounded-xl font-semibold uppercase tracking-wider transition-shadow ${styles[variant]} ${big ? "px-4 py-3 text-sm" : "px-3 py-2 text-xs"}`}
+      disabled={disabled}
+      className={`rounded-xl font-semibold uppercase tracking-wider transition-shadow disabled:opacity-40 disabled:cursor-not-allowed ${styles[variant]} ${big ? "px-4 py-3 text-sm" : "px-3 py-2 text-xs"}`}
     >
       {children}
     </motion.button>
@@ -383,7 +464,7 @@ function ErrorScreen({ message }: { message: string }) {
 
 function EmptyPlayersScreen({ auctionType }: { auctionType: string }) {
   const clearCache = () => {
-    localStorage.removeItem(`auction-state-v1:${auctionType}`);
+    localStorage.removeItem(`auction-state-v2:${auctionType}`);
     window.location.reload();
   };
   return (
