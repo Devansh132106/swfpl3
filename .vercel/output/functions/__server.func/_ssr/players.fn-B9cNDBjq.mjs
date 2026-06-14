@@ -1,5 +1,5 @@
-import { T as TSS_SERVER_FUNCTION, c as createServerFn } from "./server-DiBRIYzg.mjs";
-import { p as preparePlayers, g as getAuctionRules, a as getTeamsForAuction } from "./preparePlayers-GF4jS8F6.mjs";
+import { T as TSS_SERVER_FUNCTION, c as createServerFn } from "./server-R4_Kcf0k.mjs";
+import { p as preparePlayers, P as PLAYER_BASE_PRICE, g as getAuctionRules, a as getTeamsForAuction } from "./preparePlayers-Dj3YE9zo.mjs";
 import { P as Papa } from "../_libs/papaparse.mjs";
 import { n as normalizePhotoUrl } from "./drivePhoto-BlqciLZ2.mjs";
 import "../_libs/seroval.mjs";
@@ -92,7 +92,7 @@ async function fetchPlayers(url) {
       id: `${name}-${i}`,
       name,
       role: normalizeRole(pick(r, "role", "position")),
-      basePrice: num(pick(r, "base price", "base", "starting price", "min price")),
+      basePrice: PLAYER_BASE_PRICE,
       photoUrl: normalizePhotoUrl(photoRaw),
       jerseyName: pick(r, "jersey name"),
       jerseyNumber: pick(r, "jersey number", "jersey no.", "jersey no", "jersey #"),

@@ -18,6 +18,9 @@ export interface AuctionRules {
 
 const BASE = 1000;
 
+/** Minimum bid / base price for every player in every category. */
+export const PLAYER_BASE_PRICE = BASE;
+
 /** Only these players belong in Group Senior — everyone else (non-GK) is Group Player. */
 export const SENIOR_PLAYER_NAMES = [
   "Subho",

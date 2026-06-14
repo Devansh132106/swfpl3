@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { GROUP_LABELS } from "@/config/auctionRules";
 import type { Player } from "@/lib/auction/types";
 
-export function PlayerDetailsHeader({ player }: { player: Player | null }) {
+export function PlayerDetailsHeader({ player, basePrice }: { player: Player | null; basePrice: number }) {
   return (
     <AnimatePresence mode="wait">
       {player ? (
@@ -22,7 +22,7 @@ export function PlayerDetailsHeader({ player }: { player: Player | null }) {
           <div className="mt-3 inline-flex items-center gap-4 rounded-full glass px-5 py-2">
             <span className="text-xs uppercase tracking-widest text-muted-foreground">Base Price</span>
             <span className="font-display text-xl font-bold text-[oklch(0.85_0.17_85)]">
-              ₹{player.basePrice.toLocaleString()}
+              ₹{basePrice.toLocaleString()}
             </span>
           </div>
           {player.status === "SOLD" && (

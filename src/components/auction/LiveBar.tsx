@@ -5,10 +5,11 @@ import type { Player } from "@/lib/auction/types";
 interface Props {
   player: Player | null;
   currentBid: number | null;
+  basePrice: number;
   lotteryMode?: boolean;
 }
 
-export function LiveBar({ player, currentBid, lotteryMode }: Props) {
+export function LiveBar({ player, currentBid, basePrice, lotteryMode }: Props) {
   return (
     <div className="rounded-2xl glass-strong overflow-hidden">
       <div className="bg-gradient-to-r from-[oklch(0.3_0.15_150)]/40 via-[oklch(0.25_0.1_250)]/40 to-[oklch(0.3_0.15_280)]/40 px-4 py-2 text-center text-[10px] font-bold uppercase tracking-[0.3em] text-[oklch(0.85_0.18_150)]">
@@ -30,7 +31,7 @@ export function LiveBar({ player, currentBid, lotteryMode }: Props) {
           )}
           {!lotteryMode && (
             <>
-              <Cell label="Base Price" value={player ? `₹${player.basePrice.toLocaleString()}` : "—"} />
+              <Cell label="Base Price" value={`₹${basePrice.toLocaleString()}`} />
               <Cell label="Current Bid" value={currentBid ? `₹${currentBid.toLocaleString()}` : "—"} />
             </>
           )}

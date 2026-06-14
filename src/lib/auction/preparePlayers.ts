@@ -1,4 +1,4 @@
-import { SENIOR_PLAYER_NAMES } from "@/config/auctionRules";
+import { SENIOR_PLAYER_NAMES, PLAYER_BASE_PRICE } from "@/config/auctionRules";
 import type { Player, PlayerGroup, Team, TeamStats } from "./types";
 import type { AuctionRules } from "@/config/auctionRules";
 
@@ -150,7 +150,7 @@ export function preparePlayers(
 
   const withMeta = filtered.map((p) => ({
     ...p,
-    basePrice: rules.basePrice,
+    basePrice: rules.basePrice || PLAYER_BASE_PRICE,
     group: assignGroups ? assignPlayerGroup(p) : p.group,
   }));
 

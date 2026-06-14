@@ -32,7 +32,7 @@ export const Route = createFileRoute("/auction/$type")({
     const playersUrl = SHEETS[meta.sheetKey];
     if (!playersUrl) return;
     await context.queryClient.ensureQueryData({
-      queryKey: ["players", type, "v9"],
+      queryKey: ["players", type, "v10"],
       queryFn: () => loadPlayers({ data: { url: playersUrl, auctionType: type } }),
       staleTime: 5 * 60_000,
     });
@@ -78,7 +78,7 @@ function AuctionPage() {
   const rules = getAuctionRules(type);
 
   const playersQ = useQuery({
-    queryKey: ["players", type, "v9"],
+    queryKey: ["players", type, "v10"],
     queryFn: () => loadPlayers({ data: { url: playersUrl, auctionType: type } }),
     enabled: !!playersUrl,
     staleTime: 5 * 60_000,
@@ -119,7 +119,7 @@ function AuctionFloor({
 
   useEffect(() => {
     if (!currentPlayer) return;
-    setSoldPrice(String(currentPlayer.soldPrice ?? currentPlayer.basePrice ?? rules.basePrice));
+    setSoldPrice(String(currentPlayer.soldPrice ?? rules.basePrice));
     setTeamName(currentPlayer.team ?? "");
   }, [currentPlayer?.id, rules.basePrice]); // eslint-disable-line
 
@@ -224,6 +224,7 @@ function AuctionFloor({
           <LiveBar
             player={currentPlayer}
             currentBid={rules.lotteryMode ? null : Number(soldPrice) || null}
+            basePrice={rules.basePrice}
             lotteryMode={rules.lotteryMode}
           />
         </div>
@@ -247,7 +248,7 @@ function AuctionFloor({
               />
             ) : (
               <>
-                <PlayerDetailsHeader player={currentPlayer} />
+                <PlayerDetailsHeader player={currentPlayer} basePrice={rules.basePrice} />
 
                 <div className="glass-strong rounded-2xl p-5">
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -474,6 +475,7 @@ function ErrorScreen({ message }: { message: string }) {
 
 function EmptyPlayersScreen({ auctionType }: { auctionType: string }) {
   const clearCache = () => {
+    localStorage.removeItem(`auction-state-v3:${auctionType}`);
     localStorage.removeItem(`auction-state-v2:${auctionType}`);
     window.location.reload();
   };

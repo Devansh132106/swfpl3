@@ -1,8 +1,8 @@
 import { j as jsxRuntimeExports, r as reactExports } from "../_libs/react.mjs";
 import { L as Link } from "../_libs/tanstack__react-router.mjs";
 import { u as useQuery } from "../_libs/tanstack__react-query.mjs";
-import { R as Route$1, S as SHEETS, A as AUCTION_META, l as loadPlayers } from "./router-BUU4DSRh.mjs";
-import { e as eligibleTeams, G as GROUP_LABELS, b as effectiveMaxPlayers, g as getAuctionRules, a as getTeamsForAuction, r as resolveNextIndex, v as validateBid, c as eligibleLotteryTeams, f as findFirstInGroup, d as findFirstAvailable } from "./preparePlayers-GF4jS8F6.mjs";
+import { R as Route$1, S as SHEETS, A as AUCTION_META, l as loadPlayers } from "./router-dMXCBmTf.mjs";
+import { e as eligibleTeams, G as GROUP_LABELS, b as effectiveMaxPlayers, g as getAuctionRules, a as getTeamsForAuction, P as PLAYER_BASE_PRICE, r as resolveNextIndex, v as validateBid, c as eligibleLotteryTeams, f as findFirstInGroup, d as findFirstAvailable } from "./preparePlayers-Dj3YE9zo.mjs";
 import { u as utils, w as writeFileSync } from "../_libs/xlsx.mjs";
 import { e as extractDriveFileId, a as driveImageProxyUrl, d as driveImageDirectUrls } from "./drivePhoto-BlqciLZ2.mjs";
 import { F as FloatingParticles } from "./FloatingParticles-BsaonRbR.mjs";
@@ -21,7 +21,7 @@ import "async_hooks";
 import "stream";
 import "../_libs/isbot.mjs";
 import "../_libs/tanstack__query-core.mjs";
-import "./server-DiBRIYzg.mjs";
+import "./server-R4_Kcf0k.mjs";
 import "node:async_hooks";
 import "../_libs/h3-v2.mjs";
 import "../_libs/rou3.mjs";
@@ -29,7 +29,26 @@ import "../_libs/srvx.mjs";
 import "../_libs/zod.mjs";
 import "../_libs/motion-dom.mjs";
 import "../_libs/motion-utils.mjs";
-const KEY = (auction) => `auction-state-v2:${auction}`;
+const KEY = (auction) => `auction-state-v3:${auction}`;
+function applyBasePrice(players, basePrice) {
+  return players.map((p) => ({ ...p, basePrice }));
+}
+function mergeWithCache(initialPlayers, cached) {
+  const byId = new Map(cached.map((p) => [p.id, p]));
+  return initialPlayers.map((p) => {
+    const saved = byId.get(p.id);
+    if (!saved) return p;
+    return {
+      ...p,
+      status: saved.status,
+      soldPrice: saved.soldPrice,
+      team: saved.team,
+      jerseyName: saved.jerseyName || p.jerseyName,
+      jerseyNumber: saved.jerseyNumber || p.jerseyNumber,
+      jerseySize: saved.jerseySize || p.jerseySize
+    };
+  });
+}
 function initialGroup(rules) {
   return rules.groups?.[0] ?? null;
 }
@@ -50,7 +69,12 @@ function computeTeamStats(players, teams) {
   return stats;
 }
 function useAuctionState(auction, initialPlayers, teams, rules) {
-  const [players, setPlayers] = reactExports.useState(initialPlayers);
+  const basePrice = rules.basePrice || PLAYER_BASE_PRICE;
+  const pricedInitial = reactExports.useMemo(
+    () => applyBasePrice(initialPlayers, basePrice),
+    [initialPlayers, basePrice]
+  );
+  const [players, setPlayers] = reactExports.useState(pricedInitial);
   const [history, setHistory] = reactExports.useState([]);
   const [currentIndex, setCurrentIndex] = reactExports.useState(0);
   const [paused, setPaused] = reactExports.useState(false);
@@ -60,7 +84,7 @@ function useAuctionState(auction, initialPlayers, teams, rules) {
   const [hydrated, setHydrated] = reactExports.useState(false);
   reactExports.useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!initialPlayers.length) {
+    if (!pricedInitial.length) {
       setHydrated(true);
       return;
     }
@@ -69,15 +93,14 @@ function useAuctionState(auction, initialPlayers, teams, rules) {
       if (raw) {
         const s = JSON.parse(raw);
         if (s.players.length === 0) {
-          setPlayers(initialPlayers);
+          setPlayers(pricedInitial);
           setHistory([]);
-          setCurrentIndex(findStartIndex(initialPlayers, initialGroup(rules)));
+          setCurrentIndex(findStartIndex(pricedInitial, initialGroup(rules)));
           setActiveGroup(initialGroup(rules));
           setAuctionRound(1);
           setAuctionComplete(false);
         } else {
-          const byId = new Map(s.players.map((p) => [p.id, p]));
-          const merged = initialPlayers.map((p) => byId.get(p.id) ?? p);
+          const merged = applyBasePrice(mergeWithCache(pricedInitial, s.players), basePrice);
           setPlayers(merged);
           setHistory(s.history ?? []);
           setActiveGroup(s.activeGroup ?? initialGroup(rules));
@@ -86,15 +109,18 @@ function useAuctionState(auction, initialPlayers, teams, rules) {
           setCurrentIndex(Math.min(s.currentIndex ?? 0, Math.max(merged.length - 1, 0)));
         }
       } else {
-        setPlayers(initialPlayers);
-        setCurrentIndex(findStartIndex(initialPlayers, initialGroup(rules)));
+        setPlayers(pricedInitial);
+        setCurrentIndex(findStartIndex(pricedInitial, initialGroup(rules)));
       }
     } catch {
-      setPlayers(initialPlayers);
-      setCurrentIndex(findStartIndex(initialPlayers, initialGroup(rules)));
+      setPlayers(pricedInitial);
+      setCurrentIndex(findStartIndex(pricedInitial, initialGroup(rules)));
     }
     setHydrated(true);
-  }, [auction, initialPlayers, rules.groups]);
+  }, [auction, pricedInitial, rules.groups, basePrice]);
+  reactExports.useEffect(() => {
+    setPlayers((ps) => applyBasePrice(ps, basePrice));
+  }, [basePrice]);
   reactExports.useEffect(() => {
     if (!hydrated || typeof window === "undefined") return;
     const data = {
@@ -235,14 +261,14 @@ function useAuctionState(auction, initialPlayers, teams, rules) {
     if (idx >= 0) setCurrentIndex(idx);
   }, [players]);
   const reset = reactExports.useCallback(() => {
-    const fresh = initialPlayers.map((p) => ({ ...p, status: "AVAILABLE", soldPrice: null, team: null }));
+    const fresh = pricedInitial.map((p) => ({ ...p, status: "AVAILABLE", soldPrice: null, team: null }));
     setPlayers(fresh);
     setHistory([]);
     setActiveGroup(initialGroup(rules));
     setAuctionRound(1);
     setAuctionComplete(false);
     setCurrentIndex(findStartIndex(fresh, initialGroup(rules)));
-  }, [initialPlayers, rules]);
+  }, [pricedInitial, rules]);
   const assignLottery = reactExports.useCallback((playerId, teamName) => {
     const team = teams.find((t) => t.name === teamName);
     if (!team) return "Invalid team";
@@ -423,7 +449,7 @@ function PlayerPortrait({ player }) {
     player.id
   ) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "grid h-full min-h-[320px] place-items-center rounded-3xl glass-strong p-8 text-center text-muted-foreground", children: "No player to display." }) }) });
 }
-function PlayerDetailsHeader({ player }) {
+function PlayerDetailsHeader({ player, basePrice }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatePresence, { mode: "wait", children: player ? /* @__PURE__ */ jsxRuntimeExports.jsxs(
     motion.div,
     {
@@ -438,7 +464,7 @@ function PlayerDetailsHeader({ player }) {
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-xs uppercase tracking-widest text-muted-foreground", children: "Base Price" }),
           /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "font-display text-xl font-bold text-[oklch(0.85_0.17_85)]", children: [
             "₹",
-            player.basePrice.toLocaleString()
+            basePrice.toLocaleString()
           ] })
         ] }),
         player.status === "SOLD" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-3 text-sm", children: [
@@ -656,7 +682,7 @@ function LotteryWheel({ currentPlayer, players, teams, teamStats, rules, onAssig
     ] })
   ] });
 }
-function LiveBar({ player, currentBid, lotteryMode }) {
+function LiveBar({ player, currentBid, basePrice, lotteryMode }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "rounded-2xl glass-strong overflow-hidden", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-gradient-to-r from-[oklch(0.3_0.15_150)]/40 via-[oklch(0.25_0.1_250)]/40 to-[oklch(0.3_0.15_280)]/40 px-4 py-2 text-center text-[10px] font-bold uppercase tracking-[0.3em] text-[oklch(0.85_0.18_150)]", children: "● Live · Current Player" }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(AnimatePresence, { mode: "wait", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
@@ -672,7 +698,7 @@ function LiveBar({ player, currentBid, lotteryMode }) {
           /* @__PURE__ */ jsxRuntimeExports.jsx(Cell, { label: "Role", value: player?.role ?? "—" }),
           player?.group && /* @__PURE__ */ jsxRuntimeExports.jsx(Cell, { label: "Group", value: GROUP_LABELS[player.group]?.replace("Group ", "") ?? player.group }),
           !lotteryMode && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(Cell, { label: "Base Price", value: player ? `₹${player.basePrice.toLocaleString()}` : "—" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(Cell, { label: "Base Price", value: `₹${basePrice.toLocaleString()}` }),
             /* @__PURE__ */ jsxRuntimeExports.jsx(Cell, { label: "Current Bid", value: currentBid ? `₹${currentBid.toLocaleString()}` : "—" })
           ] }),
           lotteryMode && player && /* @__PURE__ */ jsxRuntimeExports.jsx(Cell, { label: "Status", value: player.status === "AVAILABLE" ? "Up Next" : player.status }),
@@ -845,7 +871,7 @@ function AuctionPage() {
   const teams = getTeamsForAuction(type);
   const rules = getAuctionRules(type);
   const playersQ = useQuery({
-    queryKey: ["players", type, "v7"],
+    queryKey: ["players", type, "v10"],
     queryFn: () => loadPlayers({
       data: {
         url: playersUrl,
@@ -887,7 +913,7 @@ function AuctionFloor({
   const [teamName, setTeamName] = reactExports.useState("");
   reactExports.useEffect(() => {
     if (!currentPlayer) return;
-    setSoldPrice(String(currentPlayer.soldPrice ?? currentPlayer.basePrice ?? rules.basePrice));
+    setSoldPrice(String(currentPlayer.soldPrice ?? rules.basePrice));
     setTeamName(currentPlayer.team ?? "");
   }, [currentPlayer?.id, rules.basePrice]);
   const [search, setSearch] = reactExports.useState("");
@@ -966,12 +992,12 @@ function AuctionFloor({
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(RulesBanner, { rules }),
       activeGroup && !rules.lotteryMode && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(GroupPhaseBar, { activeGroup, auctionRound, auctionComplete, remainingInGroup, unsoldCount }) }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(LiveBar, { player: currentPlayer, currentBid: rules.lotteryMode ? null : Number(soldPrice) || null, lotteryMode: rules.lotteryMode }) }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "mt-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(LiveBar, { player: currentPlayer, currentBid: rules.lotteryMode ? null : Number(soldPrice) || null, basePrice: rules.basePrice, lotteryMode: rules.lotteryMode }) }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3 xl:items-start", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "xl:sticky xl:top-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(PlayerPortrait, { player: currentPlayer }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "space-y-4", children: [
           rules.lotteryMode ? /* @__PURE__ */ jsxRuntimeExports.jsx(LotteryWheel, { currentPlayer, players, teams, teamStats, rules, onAssign: assignLottery }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(PlayerDetailsHeader, { player: currentPlayer }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(PlayerDetailsHeader, { player: currentPlayer, basePrice: rules.basePrice }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass-strong rounded-2xl p-5", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-1 gap-3 md:grid-cols-2", children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsx(Field, { label: `Sold Price (min ₹${rules.basePrice.toLocaleString()})`, children: /* @__PURE__ */ jsxRuntimeExports.jsx("input", { type: "number", value: soldPrice, onChange: (e) => setSoldPrice(e.target.value), placeholder: String(rules.basePrice), min: rules.basePrice, className: "w-full rounded-lg bg-white/5 px-3 py-2 outline-none focus:ring-2 focus:ring-[oklch(0.78_0.22_150)]" }) }),
@@ -1131,6 +1157,7 @@ function EmptyPlayersScreen({
   auctionType
 }) {
   const clearCache = () => {
+    localStorage.removeItem(`auction-state-v3:${auctionType}`);
     localStorage.removeItem(`auction-state-v2:${auctionType}`);
     window.location.reload();
   };

@@ -1,3 +1,5 @@
+const BASE = 1e3;
+const PLAYER_BASE_PRICE = BASE;
 const SENIOR_PLAYER_NAMES = [
   "Subho",
   "Joydip Basak",
@@ -11,7 +13,7 @@ const SENIOR_PLAYER_NAMES = [
 const LAKH = 1e5;
 const AUCTION_RULES = {
   open: {
-    basePrice: 5e3,
+    basePrice: BASE,
     budget: LAKH,
     minPlayers: 5,
     maxPlayers: 6,
@@ -19,14 +21,14 @@ const AUCTION_RULES = {
     groups: ["goalkeeper", "player", "senior"]
   },
   veteran: {
-    basePrice: 5e3,
+    basePrice: BASE,
     budget: LAKH,
     minPlayers: 5,
     maxPlayers: 6,
     reopenUnsold: true
   },
   female: {
-    basePrice: 0,
+    basePrice: BASE,
     budget: LAKH,
     minPlayers: 5,
     maxPlayers: 6,
@@ -34,7 +36,7 @@ const AUCTION_RULES = {
     lotteryMode: true
   },
   "kids-u14": {
-    basePrice: 5e3,
+    basePrice: BASE,
     budget: LAKH,
     minPlayers: 4,
     maxPlayers: 5,
@@ -42,13 +44,13 @@ const AUCTION_RULES = {
     maxTeamsAtMaxSize: 2
   },
   "kids-u11": {
-    basePrice: 0,
+    basePrice: BASE,
     budget: LAKH,
     minPlayers: 4,
     maxPlayers: 5,
     reopenUnsold: false,
     lotteryMode: true,
-    maxTeamsAtMaxSize: 1
+    maxTeamsAtMaxSize: 2
   }
 };
 function getAuctionRules(type) {
@@ -238,7 +240,7 @@ function preparePlayers(players, teams, rules, assignGroups = !!rules.groups?.le
   const filtered = players.filter((p) => !skip.has(normalizePersonName(p.name)));
   const withMeta = filtered.map((p) => ({
     ...p,
-    basePrice: rules.basePrice,
+    basePrice: rules.basePrice || PLAYER_BASE_PRICE,
     group: assignGroups ? assignPlayerGroup(p) : p.group
   }));
   return [...withMeta].sort((a, b) => {
@@ -306,6 +308,7 @@ function resolveNextIndex(players, afterIndex, activeGroup, rules) {
 }
 export {
   GROUP_LABELS as G,
+  PLAYER_BASE_PRICE as P,
   getTeamsForAuction as a,
   effectiveMaxPlayers as b,
   eligibleLotteryTeams as c,

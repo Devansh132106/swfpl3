@@ -1,4 +1,5 @@
 import Papa from "papaparse";
+import { PLAYER_BASE_PRICE } from "@/config/auctionRules";
 import { normalizePhotoUrl } from "./drivePhoto";
 import type { Player } from "./types";
 
@@ -71,7 +72,7 @@ export async function fetchPlayers(url: string): Promise<Player[]> {
         id: `${name}-${i}`,
         name,
         role: normalizeRole(pick(r, "role", "position")),
-        basePrice: num(pick(r, "base price", "base", "starting price", "min price")),
+        basePrice: PLAYER_BASE_PRICE,
         photoUrl: normalizePhotoUrl(photoRaw),
         jerseyName: pick(r, "jersey name"),
         jerseyNumber: pick(r, "jersey number", "jersey no.", "jersey no", "jersey #"),

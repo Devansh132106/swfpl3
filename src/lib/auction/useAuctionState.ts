@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AuctionRules } from "@/config/auctionRules";
+import { PLAYER_BASE_PRICE } from "@/config/auctionRules";
 import {
   effectiveMaxPlayers,
   findFirstAvailable,
@@ -9,7 +10,28 @@ import {
 } from "./preparePlayers";
 import type { Player, PlayerGroup, SaleRecord, Team, TeamStats } from "./types";
 
-const KEY = (auction: string) => `auction-state-v2:${auction}`;
+const KEY = (auction: string) => `auction-state-v3:${auction}`;
+
+function applyBasePrice(players: Player[], basePrice: number): Player[] {
+  return players.map((p) => ({ ...p, basePrice }));
+}
+
+function mergeWithCache(initialPlayers: Player[], cached: Player[]): Player[] {
+  const byId = new Map(cached.map((p) => [p.id, p]));
+  return initialPlayers.map((p) => {
+    const saved = byId.get(p.id);
+    if (!saved) return p;
+    return {
+      ...p,
+      status: saved.status,
+      soldPrice: saved.soldPrice,
+      team: saved.team,
+      jerseyName: saved.jerseyName || p.jerseyName,
+      jerseyNumber: saved.jerseyNumber || p.jerseyNumber,
+      jerseySize: saved.jerseySize || p.jerseySize,
+    };
+  });
+}
 
 interface PersistedState {
   players: Player[];
@@ -48,7 +70,13 @@ export function useAuctionState(
   teams: Team[],
   rules: AuctionRules,
 ) {
-  const [players, setPlayers] = useState<Player[]>(initialPlayers);
+  const basePrice = rules.basePrice || PLAYER_BASE_PRICE;
+  const pricedInitial = useMemo(
+    () => applyBasePrice(initialPlayers, basePrice),
+    [initialPlayers, basePrice],
+  );
+
+  const [players, setPlayers] = useState<Player[]>(pricedInitial);
   const [history, setHistory] = useState<SaleRecord[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -59,7 +87,7 @@ export function useAuctionState(
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!initialPlayers.length) {
+    if (!pricedInitial.length) {
       setHydrated(true);
       return;
     }
@@ -68,27 +96,14 @@ export function useAuctionState(
       if (raw) {
         const s = JSON.parse(raw) as PersistedState;
         if (s.players.length === 0) {
-          setPlayers(initialPlayers);
+          setPlayers(pricedInitial);
           setHistory([]);
-          setCurrentIndex(findStartIndex(initialPlayers, initialGroup(rules)));
+          setCurrentIndex(findStartIndex(pricedInitial, initialGroup(rules)));
           setActiveGroup(initialGroup(rules));
           setAuctionRound(1);
           setAuctionComplete(false);
         } else {
-          const byId = new Map(s.players.map((p) => [p.id, p]));
-          const merged = initialPlayers.map((p) => {
-            const cached = byId.get(p.id);
-            if (!cached) return p;
-            return {
-              ...p,
-              status: cached.status,
-              soldPrice: cached.soldPrice,
-              team: cached.team,
-              jerseyName: cached.jerseyName || p.jerseyName,
-              jerseyNumber: cached.jerseyNumber || p.jerseyNumber,
-              jerseySize: cached.jerseySize || p.jerseySize,
-            };
-          });
+          const merged = applyBasePrice(mergeWithCache(pricedInitial, s.players), basePrice);
           setPlayers(merged);
           setHistory(s.history ?? []);
           setActiveGroup(s.activeGroup ?? initialGroup(rules));
@@ -97,15 +112,19 @@ export function useAuctionState(
           setCurrentIndex(Math.min(s.currentIndex ?? 0, Math.max(merged.length - 1, 0)));
         }
       } else {
-        setPlayers(initialPlayers);
-        setCurrentIndex(findStartIndex(initialPlayers, initialGroup(rules)));
+        setPlayers(pricedInitial);
+        setCurrentIndex(findStartIndex(pricedInitial, initialGroup(rules)));
       }
     } catch {
-      setPlayers(initialPlayers);
-      setCurrentIndex(findStartIndex(initialPlayers, initialGroup(rules)));
+      setPlayers(pricedInitial);
+      setCurrentIndex(findStartIndex(pricedInitial, initialGroup(rules)));
     }
     setHydrated(true);
-  }, [auction, initialPlayers, rules.groups]);
+  }, [auction, pricedInitial, rules.groups, basePrice]);
+
+  useEffect(() => {
+    setPlayers((ps) => applyBasePrice(ps, basePrice));
+  }, [basePrice]);
 
   useEffect(() => {
     if (!hydrated || typeof window === "undefined") return;
@@ -232,14 +251,14 @@ export function useAuctionState(
   }, [players]);
 
   const reset = useCallback(() => {
-    const fresh = initialPlayers.map((p) => ({ ...p, status: "AVAILABLE" as const, soldPrice: null, team: null }));
+    const fresh = pricedInitial.map((p) => ({ ...p, status: "AVAILABLE" as const, soldPrice: null, team: null }));
     setPlayers(fresh);
     setHistory([]);
     setActiveGroup(initialGroup(rules));
     setAuctionRound(1);
     setAuctionComplete(false);
     setCurrentIndex(findStartIndex(fresh, initialGroup(rules)));
-  }, [initialPlayers, rules]);
+  }, [pricedInitial, rules]);
 
   const assignLottery = useCallback((playerId: string, teamName: string) => {
     const team = teams.find((t) => t.name === teamName);
