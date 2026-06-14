@@ -36,6 +36,7 @@ export interface TeamStats {
   bought: number;
   spent: number;
   seniorCount: number;
+  goalkeeperCount: number;
   players: Player[];
 }
 

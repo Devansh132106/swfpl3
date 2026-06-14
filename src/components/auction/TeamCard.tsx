@@ -6,10 +6,11 @@ interface Props {
   team: Team;
   bought: number;
   spent: number;
+  hidePurse?: boolean;
   onClick: () => void;
 }
 
-export function TeamCard({ team, bought, spent, onClick }: Props) {
+export function TeamCard({ team, bought, spent, hidePurse, onClick }: Props) {
   const needMore = Math.max(team.minPlayers - bought, 0);
   const purseLeft = Math.max(team.budget - spent, 0);
   return (
@@ -36,15 +37,19 @@ export function TeamCard({ team, bought, spent, onClick }: Props) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-display text-sm font-bold truncate">{team.name}</div>
-          <div className="text-[11px] text-muted-foreground truncate">
-            C: {team.captain || "—"} · M: {team.mentor || "—"}
-          </div>
+          {(team.captain || team.mentor) && (
+            <div className="text-[11px] text-muted-foreground truncate">
+              {team.captain && <>C: {team.captain}</>}
+              {team.captain && team.mentor && " · "}
+              {team.mentor && <>M: {team.mentor}</>}
+            </div>
+          )}
         </div>
       </div>
-      <div className="relative mt-3 grid grid-cols-3 gap-1.5 text-center">
+      <div className={`relative mt-3 grid gap-1.5 text-center ${hidePurse ? "grid-cols-2" : "grid-cols-3"}`}>
         <Pill label="Slots" value={`${bought}/${team.maxPlayers}`} />
         <Pill label="Need" value={needMore > 0 ? needMore : "✓"} />
-        <Pill label="Purse" value={formatPurse(purseLeft)} />
+        {!hidePurse && <Pill label="Purse" value={formatPurse(purseLeft)} />}
       </div>
     </motion.button>
   );

@@ -7,10 +7,11 @@ interface Props {
   team: Team | null;
   players: Player[];
   spent: number;
+  hidePurse?: boolean;
   onClose: () => void;
 }
 
-export function TeamModal({ open, team, players, spent, onClose }: Props) {
+export function TeamModal({ open, team, players, spent, hidePurse, onClose }: Props) {
   return (
     <AnimatePresence>
       {open && team && (
@@ -80,10 +81,14 @@ export function TeamModal({ open, team, players, spent, onClose }: Props) {
               </div>
             </div>
 
-            <footer className="grid grid-cols-3 gap-2 border-t border-white/10 p-6">
+            <footer className={`grid gap-2 border-t border-white/10 p-6 ${hidePurse ? "grid-cols-1" : "grid-cols-3"}`}>
               <Stat label="Total Players" value={players.length} />
-              <Stat label="Spent" value={`₹${spent.toLocaleString()}`} />
-              <Stat label="Purse Left" value={formatPurse(Math.max(team.budget - spent, 0))} />
+              {!hidePurse && (
+                <>
+                  <Stat label="Spent" value={`₹${spent.toLocaleString()}`} />
+                  <Stat label="Purse Left" value={formatPurse(Math.max(team.budget - spent, 0))} />
+                </>
+              )}
             </footer>
           </motion.aside>
         </>

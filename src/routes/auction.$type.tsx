@@ -219,6 +219,15 @@ function AuctionFloor({
           </div>
         )}
 
+        {/* Live current player — full width above 3-column layout */}
+        <div className="mt-4">
+          <LiveBar
+            player={currentPlayer}
+            currentBid={rules.lotteryMode ? null : Number(soldPrice) || null}
+            lotteryMode={rules.lotteryMode}
+          />
+        </div>
+
         <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3 xl:items-start">
           {/* LEFT — player portrait */}
           <section className="xl:sticky xl:top-4">
@@ -228,11 +237,16 @@ function AuctionFloor({
           {/* MIDDLE — details, bidding, player list */}
           <section className="space-y-4">
             {rules.lotteryMode ? (
-              <LotteryWheel players={players} teams={teams} teamStats={teamStats} onAssign={assignLottery} />
+              <LotteryWheel
+                currentPlayer={currentPlayer}
+                players={players}
+                teams={teams}
+                teamStats={teamStats}
+                onAssign={assignLottery}
+              />
             ) : (
               <>
                 <PlayerDetailsHeader player={currentPlayer} />
-                <LiveBar player={currentPlayer} currentBid={Number(soldPrice) || null} />
 
                 <div className="glass-strong rounded-2xl p-5">
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -324,9 +338,16 @@ function AuctionFloor({
             </div>
             <motion.div layout className="grid max-h-[calc(100vh-10rem)] grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-1">
               {teams.map((t) => {
-                const s = teamStats.get(t.name) ?? { bought: 0, spent: 0, players: [] };
+                const s = teamStats.get(t.name) ?? { bought: 0, spent: 0, seniorCount: 0, goalkeeperCount: 0, players: [] };
                 return (
-                  <TeamCard key={t.id} team={t} bought={s.bought} spent={s.spent} onClick={() => setModalTeam(t)} />
+                  <TeamCard
+                    key={t.id}
+                    team={t}
+                    bought={s.bought}
+                    spent={s.spent}
+                    hidePurse={rules.lotteryMode}
+                    onClick={() => setModalTeam(t)}
+                  />
                 );
               })}
             </motion.div>
@@ -339,6 +360,7 @@ function AuctionFloor({
         team={modalTeam}
         players={modalTeam ? teamStats.get(modalTeam.name)?.players ?? [] : []}
         spent={modalTeam ? teamStats.get(modalTeam.name)?.spent ?? 0 : 0}
+        hidePurse={rules.lotteryMode}
         onClose={() => setModalTeam(null)}
       />
 

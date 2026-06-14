@@ -1,58 +1,104 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import type { Player, Team, TeamStats } from "@/lib/auction/types";
 
 interface Props {
+  currentPlayer: Player | null;
   players: Player[];
   teams: Team[];
   teamStats: Map<string, TeamStats>;
   onAssign: (playerId: string, teamName: string) => string | null;
 }
 
-const SEGMENT_COLORS = [
-  "from-[oklch(0.65_0.24_25)] to-[oklch(0.55_0.22_15)]",
-  "from-[oklch(0.7_0.2_150)] to-[oklch(0.55_0.2_170)]",
-  "from-[oklch(0.65_0.2_240)] to-[oklch(0.5_0.2_260)]",
-  "from-[oklch(0.78_0.18_90)] to-[oklch(0.65_0.2_70)]",
-  "from-[oklch(0.72_0.18_340)] to-[oklch(0.62_0.22_310)]",
-  "from-[oklch(0.75_0.18_200)] to-[oklch(0.65_0.22_220)]",
+const WHEEL_COLORS = [
+  "oklch(0.55 0.22 25)",
+  "oklch(0.55 0.2 150)",
+  "oklch(0.55 0.2 240)",
+  "oklch(0.6 0.18 90)",
+  "oklch(0.55 0.18 340)",
+  "oklch(0.55 0.18 200)",
+  "oklch(0.58 0.2 55)",
+  "oklch(0.52 0.2 280)",
 ];
 
-export function LotteryWheel({ players, teams, teamStats, onAssign }: Props) {
+const SIZE = 320;
+const CX = SIZE / 2;
+const CY = SIZE / 2;
+const R = SIZE / 2 - 8;
+
+function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function slicePath(index: number, total: number): string {
+  const seg = 360 / total;
+  const start = index * seg;
+  const end = start + seg;
+  const p1 = polarToCartesian(CX, CY, R, start);
+  const p2 = polarToCartesian(CX, CY, R, end);
+  const large = seg > 180 ? 1 : 0;
+  return `M ${CX} ${CY} L ${p1.x} ${p1.y} A ${R} ${R} 0 ${large} 1 ${p2.x} ${p2.y} Z`;
+}
+
+function labelPos(index: number, total: number) {
+  const seg = 360 / total;
+  const mid = index * seg + seg / 2;
+  const p = polarToCartesian(CX, CY, R * 0.62, mid);
+  return { x: p.x, y: p.y, rotate: mid };
+}
+
+/** Rotation (deg, clockwise) so segment `index` center lands under the top pointer. */
+function rotationForSegment(index: number, total: number): number {
+  const seg = 360 / total;
+  const center = index * seg + seg / 2;
+  return (360 - center) % 360;
+}
+
+export function LotteryWheel({ currentPlayer, players, teams, teamStats, onAssign }: Props) {
   const remaining = useMemo(() => players.filter((p) => p.status === "AVAILABLE"), [players]);
   const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [result, setResult] = useState<{ player: Player; team: Team } | null>(null);
+  const pendingRef = useRef<{ player: Player; team: Team } | null>(null);
 
   const eligibleTeams = useMemo(
     () => teams.filter((t) => (teamStats.get(t.name)?.bought ?? 0) < t.maxPlayers),
     [teams, teamStats],
   );
 
-  const currentPlayer = remaining[0] ?? null;
-
   const spin = () => {
-    if (!currentPlayer || spinning || eligibleTeams.length === 0) return;
+    const player = currentPlayer ?? remaining[0];
+    if (!player || spinning || eligibleTeams.length === 0) return;
     setSpinning(true);
     setResult(null);
 
-    const teamIndex = Math.floor(Math.random() * eligibleTeams.length);
-    const team = eligibleTeams[teamIndex];
-    const segment = 360 / teams.length;
-    const fullIndex = teams.findIndex((t) => t.id === team.id);
-    const target = 360 * 5 + fullIndex * segment + segment / 2;
+    const picked = eligibleTeams[Math.floor(Math.random() * eligibleTeams.length)];
+    const teamIndex = teams.findIndex((t) => t.id === picked.id);
+    if (teamIndex < 0) return;
 
-    setRotation((r) => r + target);
+    pendingRef.current = { player, team: picked };
 
-    setTimeout(() => {
-      setSpinning(false);
-      const err = onAssign(currentPlayer.id, team.name);
-      if (err) {
-        alert(err);
-        return;
-      }
-      setResult({ player: currentPlayer, team });
-    }, 4200);
+    const targetMod = rotationForSegment(teamIndex, teams.length);
+    const currentMod = ((rotation % 360) + 360) % 360;
+    let delta = targetMod - currentMod;
+    if (delta <= 0) delta += 360;
+    const nextRotation = rotation + 360 * 6 + delta;
+
+    setRotation(nextRotation);
+  };
+
+  const onSpinComplete = () => {
+    if (!spinning || !pendingRef.current) return;
+    setSpinning(false);
+    const { player, team } = pendingRef.current;
+    pendingRef.current = null;
+    const err = onAssign(player.id, team.name);
+    if (err) {
+      alert(err);
+      return;
+    }
+    setResult({ player, team });
   };
 
   if (!remaining.length) {
@@ -66,52 +112,70 @@ export function LotteryWheel({ players, teams, teamStats, onAssign }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="glass-strong rounded-2xl p-4 text-center">
-        <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Next draw</div>
-        <div className="font-display text-2xl font-bold">{currentPlayer.name}</div>
-        <div className="text-sm text-muted-foreground">{remaining.length} players remaining</div>
-      </div>
+      <div className="relative mx-auto flex max-w-lg flex-col items-center">
+        {/* Fixed pointer at top */}
+        <div className="relative z-20 -mb-3">
+          <div className="mx-auto h-0 w-0 border-x-[14px] border-x-transparent border-t-[22px] border-t-[oklch(0.85_0.18_85)] drop-shadow-lg" />
+        </div>
 
-      <div className="relative mx-auto flex max-w-md flex-col items-center">
-        <div className="absolute -top-2 z-10 text-2xl">▼</div>
-        <motion.div
-          animate={{ rotate: rotation }}
-          transition={{ duration: spinning ? 4 : 0, ease: [0.2, 0.8, 0.2, 1] }}
-          className="relative h-72 w-72 rounded-full border-4 border-white/20 shadow-2xl"
-          style={{ background: "conic-gradient(from 0deg, oklch(0.5 0.2 150), oklch(0.5 0.2 240), oklch(0.5 0.2 25), oklch(0.5 0.2 90))" }}
-        >
-          {teams.map((t, i) => {
-            const angle = (360 / teams.length) * i;
-            const full = (teamStats.get(t.name)?.bought ?? 0) >= t.maxPlayers;
-            return (
-              <div
-                key={t.id}
-                className="absolute inset-0 flex items-start justify-center pt-6"
-                style={{ transform: `rotate(${angle}deg)` }}
-              >
-                <span
-                  className={`rounded-full bg-gradient-to-r ${SEGMENT_COLORS[i % SEGMENT_COLORS.length]} px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow ${full ? "opacity-40" : ""}`}
-                  style={{ transform: `rotate(${-angle - rotation}deg)` }}
-                >
-                  {t.name.split(" ")[0]}
-                </span>
-              </div>
-            );
-          })}
-          <div className="absolute inset-0 m-auto h-16 w-16 rounded-full glass-strong grid place-items-center font-display text-xs font-bold">
-            SPIN
-          </div>
-        </motion.div>
+        <div className="relative rounded-full p-1 shadow-2xl ring-4 ring-white/20">
+          <motion.div
+            animate={{ rotate: rotation }}
+            transition={{ duration: spinning ? 5 : 0, ease: [0.15, 0.85, 0.25, 1] }}
+            onAnimationComplete={() => spinning && onSpinComplete()}
+            className="relative"
+            style={{ width: SIZE, height: SIZE }}
+          >
+            <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} className="block">
+              {teams.map((t, i) => {
+                const full = (teamStats.get(t.name)?.bought ?? 0) >= t.maxPlayers;
+                const { x, y, rotate } = labelPos(i, teams.length);
+                return (
+                  <g key={t.id}>
+                    <path
+                      d={slicePath(i, teams.length)}
+                      fill={WHEEL_COLORS[i % WHEEL_COLORS.length]}
+                      stroke="white"
+                      strokeWidth={3}
+                      opacity={full ? 0.35 : 1}
+                    />
+                    <text
+                      x={x}
+                      y={y}
+                      fill="white"
+                      fontSize={teams.length > 4 ? 11 : 13}
+                      fontWeight="bold"
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      transform={`rotate(${rotate}, ${x}, ${y})`}
+                      opacity={full ? 0.5 : 1}
+                    >
+                      {t.name.length > 12 ? t.name.split(" ")[0] : t.name}
+                    </text>
+                  </g>
+                );
+              })}
+              <circle cx={CX} cy={CY} r={28} fill="oklch(0.15 0.02 260)" stroke="white" strokeWidth={3} />
+              <text x={CX} y={CY} fill="white" fontSize={11} fontWeight="bold" textAnchor="middle" dominantBaseline="middle">
+                SPIN
+              </text>
+            </svg>
+          </motion.div>
+        </div>
 
         <motion.button
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
-          disabled={spinning || eligibleTeams.length === 0}
+          disabled={spinning || eligibleTeams.length === 0 || !currentPlayer}
           onClick={spin}
           className="mt-8 rounded-xl bg-gradient-to-r from-[oklch(0.8_0.16_85)] to-[oklch(0.7_0.18_70)] px-8 py-3 font-display font-bold uppercase tracking-wider text-black disabled:opacity-50"
         >
           {spinning ? "Spinning…" : eligibleTeams.length === 0 ? "All teams full" : "Spin the Wheel"}
         </motion.button>
+
+        <p className="mt-3 text-center text-xs text-muted-foreground">
+          {remaining.length} players remaining · pointer selects the team
+        </p>
       </div>
 
       {result && !spinning && (

@@ -26,13 +26,14 @@ function initialGroup(rules: AuctionRules): PlayerGroup | null {
 
 function computeTeamStats(players: Player[], teams: Team[]): Map<string, TeamStats> {
   const stats = new Map<string, TeamStats>();
-  for (const t of teams) stats.set(t.name, { bought: 0, spent: 0, seniorCount: 0, players: [] });
+  for (const t of teams) stats.set(t.name, { bought: 0, spent: 0, seniorCount: 0, goalkeeperCount: 0, players: [] });
   for (const p of players) {
     if (p.status === "SOLD" && p.team) {
-      const s = stats.get(p.team) ?? { bought: 0, spent: 0, seniorCount: 0, players: [] };
+      const s = stats.get(p.team) ?? { bought: 0, spent: 0, seniorCount: 0, goalkeeperCount: 0, players: [] };
       s.bought += 1;
       s.spent += p.soldPrice ?? 0;
       if (p.group === "senior") s.seniorCount += 1;
+      if (p.group === "goalkeeper" || /^goal\s*keeper$/i.test(p.role.trim())) s.goalkeeperCount += 1;
       s.players.push(p);
       stats.set(p.team, s);
     }
@@ -128,7 +129,7 @@ export function useAuctionState(
       if (!currentPlayer) return "No player selected";
       const team = teams.find((t) => t.name === opts.teamName);
       if (!team) return "Select a team";
-      const stats = teamStats.get(team.name) ?? { bought: 0, spent: 0, seniorCount: 0, players: [] };
+      const stats = teamStats.get(team.name) ?? { bought: 0, spent: 0, seniorCount: 0, goalkeeperCount: 0, players: [] };
       const err = validateBid(currentPlayer, team, opts.soldPrice, rules, stats);
       if (err) return err;
 
@@ -230,7 +231,7 @@ export function useAuctionState(
   const assignLottery = useCallback((playerId: string, teamName: string) => {
     const team = teams.find((t) => t.name === teamName);
     if (!team) return "Invalid team";
-    const stats = teamStats.get(team.name) ?? { bought: 0, spent: 0, seniorCount: 0, players: [] };
+    const stats = teamStats.get(team.name) ?? { bought: 0, spent: 0, seniorCount: 0, goalkeeperCount: 0, players: [] };
     if (stats.bought >= team.maxPlayers) return `${team.name} already has ${team.maxPlayers} players`;
 
     setPlayers((ps) => {

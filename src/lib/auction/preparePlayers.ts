@@ -21,6 +21,10 @@ export function assignPlayerGroup(player: Pick<Player, "name" | "role">): Player
   return "player";
 }
 
+export function isPlayerGoalkeeper(player: Pick<Player, "role" | "group">): boolean {
+  return player.group === "goalkeeper" || isGoalkeeperRole(player.role);
+}
+
 export function validateBid(
   player: Player,
   team: Team,
@@ -37,14 +41,23 @@ export function validateBid(
   if (stats.bought >= team.maxPlayers) {
     return `${team.name} already has ${team.maxPlayers} players (max)`;
   }
-  if (player.group === "goalkeeper" && team.cannotBidGoalkeepers) {
-    return `${team.name} cannot bid — captain is the goalkeeper`;
+  if (isPlayerGoalkeeper(player)) {
+    if (team.cannotBidGoalkeepers) {
+      return `${team.name} cannot bid — captain is the goalkeeper`;
+    }
+    if (stats.goalkeeperCount >= 1) {
+      return `${team.name} already has a goalkeeper (max 1)`;
+    }
   }
   const maxSenior = team.maxSeniorPlayers ?? 1;
   if (player.group === "senior" && stats.seniorCount >= maxSenior) {
     return `${team.name} already picked a Group Senior player`;
   }
   return null;
+}
+
+function emptyStats(): TeamStats {
+  return { bought: 0, spent: 0, seniorCount: 0, goalkeeperCount: 0, players: [] };
 }
 
 export function eligibleTeams(
@@ -55,7 +68,7 @@ export function eligibleTeams(
   price: number,
 ): Team[] {
   return teams.filter((t) => {
-    const stats = teamStats.get(t.name) ?? { bought: 0, spent: 0, seniorCount: 0, players: [] };
+    const stats = teamStats.get(t.name) ?? emptyStats();
     return validateBid(player, t, price, rules, stats) === null;
   });
 }
