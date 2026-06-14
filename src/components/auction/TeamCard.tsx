@@ -6,13 +6,15 @@ interface Props {
   team: Team;
   bought: number;
   spent: number;
+  slotMax?: number;
   hidePurse?: boolean;
   onClick: () => void;
 }
 
-export function TeamCard({ team, bought, spent, hidePurse, onClick }: Props) {
+export function TeamCard({ team, bought, spent, slotMax, hidePurse, onClick }: Props) {
   const needMore = Math.max(team.minPlayers - bought, 0);
   const purseLeft = Math.max(team.budget - spent, 0);
+  const maxSlots = slotMax ?? team.maxPlayers;
   return (
     <motion.button
       onClick={onClick}
@@ -47,7 +49,7 @@ export function TeamCard({ team, bought, spent, hidePurse, onClick }: Props) {
         </div>
       </div>
       <div className={`relative mt-3 grid gap-1.5 text-center ${hidePurse ? "grid-cols-2" : "grid-cols-3"}`}>
-        <Pill label="Slots" value={`${bought}/${team.maxPlayers}`} />
+        <Pill label="Slots" value={`${bought}/${maxSlots}`} />
         <Pill label="Need" value={needMore > 0 ? needMore : "✓"} />
         {!hidePurse && <Pill label="Purse" value={formatPurse(purseLeft)} />}
       </div>

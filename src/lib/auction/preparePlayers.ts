@@ -25,12 +25,38 @@ export function isPlayerGoalkeeper(player: Pick<Player, "role" | "group">): bool
   return player.group === "goalkeeper" || isGoalkeeperRole(player.role);
 }
 
+function emptyStats(): TeamStats {
+  return { bought: 0, spent: 0, seniorCount: 0, goalkeeperCount: 0, players: [] };
+}
+
+/** Per-team roster cap — others stay at maxPlayers−1 when the league cap on full squads is reached. */
+export function effectiveMaxPlayers(
+  team: Team,
+  teams: Team[],
+  teamStats: Map<string, TeamStats>,
+  rules: AuctionRules,
+): number {
+  if (!rules.maxTeamsAtMaxSize) return team.maxPlayers;
+
+  const bought = teamStats.get(team.name)?.bought ?? 0;
+  if (bought >= team.maxPlayers) return team.maxPlayers;
+
+  const teamsAtFullMax = teams.filter(
+    (t) => t.name !== team.name && (teamStats.get(t.name)?.bought ?? 0) >= team.maxPlayers,
+  ).length;
+
+  if (teamsAtFullMax >= rules.maxTeamsAtMaxSize) return team.maxPlayers - 1;
+  return team.maxPlayers;
+}
+
 export function validateBid(
   player: Player,
   team: Team,
   price: number,
   rules: AuctionRules,
   stats: TeamStats,
+  allTeams: Team[] = [team],
+  allStats: Map<string, TeamStats> = new Map([[team.name, stats]]),
 ): string | null {
   if (price < rules.basePrice) {
     return `Minimum bid is ₹${rules.basePrice.toLocaleString()}`;
@@ -38,8 +64,12 @@ export function validateBid(
   if (stats.spent + price > team.budget) {
     return `${team.name} only has ₹${(team.budget - stats.spent).toLocaleString()} left`;
   }
-  if (stats.bought >= team.maxPlayers) {
-    return `${team.name} already has ${team.maxPlayers} players (max)`;
+  const cap = effectiveMaxPlayers(team, allTeams, allStats, rules);
+  if (stats.bought >= cap) {
+    if (cap < team.maxPlayers && rules.maxTeamsAtMaxSize) {
+      return `${team.name} is capped at ${cap} players — only ${rules.maxTeamsAtMaxSize} team(s) can have ${team.maxPlayers}`;
+    }
+    return `${team.name} already has ${cap} players (max)`;
   }
   if (isPlayerGoalkeeper(player)) {
     if (team.cannotBidGoalkeepers) {
@@ -56,10 +86,6 @@ export function validateBid(
   return null;
 }
 
-function emptyStats(): TeamStats {
-  return { bought: 0, spent: 0, seniorCount: 0, goalkeeperCount: 0, players: [] };
-}
-
 export function eligibleTeams(
   player: Player,
   teams: Team[],
@@ -69,7 +95,18 @@ export function eligibleTeams(
 ): Team[] {
   return teams.filter((t) => {
     const stats = teamStats.get(t.name) ?? emptyStats();
-    return validateBid(player, t, price, rules, stats) === null;
+    return validateBid(player, t, price, rules, stats, teams, teamStats) === null;
+  });
+}
+
+export function eligibleLotteryTeams(
+  teams: Team[],
+  teamStats: Map<string, TeamStats>,
+  rules: AuctionRules,
+): Team[] {
+  return teams.filter((t) => {
+    const stats = teamStats.get(t.name) ?? emptyStats();
+    return stats.bought < effectiveMaxPlayers(t, teams, teamStats, rules);
   });
 }
 

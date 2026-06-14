@@ -38,7 +38,8 @@ const AUCTION_RULES = {
     budget: LAKH,
     minPlayers: 4,
     maxPlayers: 5,
-    reopenUnsold: true
+    reopenUnsold: true,
+    maxTeamsAtMaxSize: 2
   },
   "kids-u11": {
     basePrice: 0,
@@ -46,7 +47,8 @@ const AUCTION_RULES = {
     minPlayers: 4,
     maxPlayers: 5,
     reopenUnsold: false,
-    lotteryMode: true
+    lotteryMode: true,
+    maxTeamsAtMaxSize: 1
   }
 };
 function getAuctionRules(type) {
@@ -155,15 +157,32 @@ function assignPlayerGroup(player) {
 function isPlayerGoalkeeper(player) {
   return player.group === "goalkeeper" || isGoalkeeperRole(player.role);
 }
-function validateBid(player, team, price, rules, stats) {
+function emptyStats() {
+  return { bought: 0, spent: 0, seniorCount: 0, goalkeeperCount: 0, players: [] };
+}
+function effectiveMaxPlayers(team, teams, teamStats, rules) {
+  if (!rules.maxTeamsAtMaxSize) return team.maxPlayers;
+  const bought = teamStats.get(team.name)?.bought ?? 0;
+  if (bought >= team.maxPlayers) return team.maxPlayers;
+  const teamsAtFullMax = teams.filter(
+    (t) => t.name !== team.name && (teamStats.get(t.name)?.bought ?? 0) >= team.maxPlayers
+  ).length;
+  if (teamsAtFullMax >= rules.maxTeamsAtMaxSize) return team.maxPlayers - 1;
+  return team.maxPlayers;
+}
+function validateBid(player, team, price, rules, stats, allTeams = [team], allStats = /* @__PURE__ */ new Map([[team.name, stats]])) {
   if (price < rules.basePrice) {
     return `Minimum bid is ₹${rules.basePrice.toLocaleString()}`;
   }
   if (stats.spent + price > team.budget) {
     return `${team.name} only has ₹${(team.budget - stats.spent).toLocaleString()} left`;
   }
-  if (stats.bought >= team.maxPlayers) {
-    return `${team.name} already has ${team.maxPlayers} players (max)`;
+  const cap = effectiveMaxPlayers(team, allTeams, allStats, rules);
+  if (stats.bought >= cap) {
+    if (cap < team.maxPlayers && rules.maxTeamsAtMaxSize) {
+      return `${team.name} is capped at ${cap} players — only ${rules.maxTeamsAtMaxSize} team(s) can have ${team.maxPlayers}`;
+    }
+    return `${team.name} already has ${cap} players (max)`;
   }
   if (isPlayerGoalkeeper(player)) {
     if (team.cannotBidGoalkeepers) {
@@ -179,13 +198,16 @@ function validateBid(player, team, price, rules, stats) {
   }
   return null;
 }
-function emptyStats() {
-  return { bought: 0, spent: 0, seniorCount: 0, goalkeeperCount: 0, players: [] };
-}
 function eligibleTeams(player, teams, teamStats, rules, price) {
   return teams.filter((t) => {
     const stats = teamStats.get(t.name) ?? emptyStats();
-    return validateBid(player, t, price, rules, stats) === null;
+    return validateBid(player, t, price, rules, stats, teams, teamStats) === null;
+  });
+}
+function eligibleLotteryTeams(teams, teamStats, rules) {
+  return teams.filter((t) => {
+    const stats = teamStats.get(t.name) ?? emptyStats();
+    return stats.bought < effectiveMaxPlayers(t, teams, teamStats, rules);
   });
 }
 function excludedNames(teams) {
@@ -285,7 +307,9 @@ function resolveNextIndex(players, afterIndex, activeGroup, rules) {
 export {
   GROUP_LABELS as G,
   getTeamsForAuction as a,
-  findFirstAvailable as b,
+  effectiveMaxPlayers as b,
+  eligibleLotteryTeams as c,
+  findFirstAvailable as d,
   eligibleTeams as e,
   findFirstInGroup as f,
   getAuctionRules as g,

@@ -12,6 +12,8 @@ export interface AuctionRules {
   groups?: PlayerGroup[];
   /** Lottery wheel instead of bidding (U11, Female). */
   lotteryMode?: boolean;
+  /** How many teams may reach maxPlayers (e.g. U11: 1 team of 5; U15: 2 teams of 5). */
+  maxTeamsAtMaxSize?: number;
 }
 
 /** Only these players belong in Group Senior — everyone else (non-GK) is Group Player. */
@@ -58,6 +60,7 @@ export const AUCTION_RULES: Record<AuctionType, AuctionRules> = {
     minPlayers: 4,
     maxPlayers: 5,
     reopenUnsold: true,
+    maxTeamsAtMaxSize: 2,
   },
   "kids-u11": {
     basePrice: 0,
@@ -66,6 +69,7 @@ export const AUCTION_RULES: Record<AuctionType, AuctionRules> = {
     maxPlayers: 5,
     reopenUnsold: false,
     lotteryMode: true,
+    maxTeamsAtMaxSize: 1,
   },
 };
 

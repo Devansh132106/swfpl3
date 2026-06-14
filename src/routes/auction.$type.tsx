@@ -7,7 +7,7 @@ import { getAuctionRules } from "@/config/auctionRules";
 import { GROUP_LABELS } from "@/config/auctionRules";
 import { getTeamsForAuction } from "@/config/teams";
 import { loadPlayers } from "@/lib/auction/players.fn";
-import { eligibleTeams } from "@/lib/auction/preparePlayers";
+import { eligibleTeams, effectiveMaxPlayers } from "@/lib/auction/preparePlayers";
 import { useAuctionState } from "@/lib/auction/useAuctionState";
 import { downloadAuctionResults } from "@/lib/auction/excel";
 import { PlayerPortrait } from "@/components/auction/PlayerPortrait";
@@ -242,6 +242,7 @@ function AuctionFloor({
                 players={players}
                 teams={teams}
                 teamStats={teamStats}
+                rules={rules}
                 onAssign={assignLottery}
               />
             ) : (
@@ -345,6 +346,7 @@ function AuctionFloor({
                     team={t}
                     bought={s.bought}
                     spent={s.spent}
+                    slotMax={effectiveMaxPlayers(t, teams, teamStats, rules)}
                     hidePurse={rules.lotteryMode}
                     onClick={() => setModalTeam(t)}
                   />
@@ -378,20 +380,27 @@ function RulesBanner({ rules }: { rules: ReturnType<typeof getAuctionRules> }) {
     const playerRange = rules.minPlayers === rules.maxPlayers
       ? `${rules.maxPlayers} players`
       : `${rules.minPlayers}–${rules.maxPlayers} players each`;
+    const capNote = rules.maxTeamsAtMaxSize
+      ? ` · only ${rules.maxTeamsAtMaxSize} team${rules.maxTeamsAtMaxSize > 1 ? "s" : ""} may have ${rules.maxPlayers} players`
+      : "";
     return (
       <div className="glass rounded-xl px-4 py-2 text-xs text-muted-foreground">
-        <strong className="text-foreground">Lottery mode</strong> — {playerRange}, randomly assigned via the wheel.
+        <strong className="text-foreground">Lottery mode</strong> — {playerRange}, randomly assigned via the wheel{capNote}.
       </div>
     );
   }
   const playerRange = rules.minPlayers === rules.maxPlayers
     ? `${rules.maxPlayers} players`
     : `${rules.minPlayers}–${rules.maxPlayers} players`;
+  const capNote = rules.maxTeamsAtMaxSize
+    ? ` · only ${rules.maxTeamsAtMaxSize} teams may have ${rules.maxPlayers} players`
+    : "";
   return (
     <div className="glass rounded-xl px-4 py-2 text-xs text-muted-foreground">
       Min bid <strong className="text-foreground">₹{rules.basePrice.toLocaleString()}</strong>
       {" · "}Budget <strong className="text-foreground">₹{rules.budget.toLocaleString()}</strong>
       {" · "}Pick <strong className="text-foreground">{playerRange}</strong>
+      {capNote}
       {rules.reopenUnsold && " · Unsold players re-auctioned until all sold"}
     </div>
   );

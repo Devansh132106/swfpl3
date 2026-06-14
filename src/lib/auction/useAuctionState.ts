@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AuctionRules } from "@/config/auctionRules";
 import {
+  effectiveMaxPlayers,
   findFirstAvailable,
   findFirstInGroup,
   resolveNextIndex,
@@ -130,7 +131,7 @@ export function useAuctionState(
       const team = teams.find((t) => t.name === opts.teamName);
       if (!team) return "Select a team";
       const stats = teamStats.get(team.name) ?? { bought: 0, spent: 0, seniorCount: 0, goalkeeperCount: 0, players: [] };
-      const err = validateBid(currentPlayer, team, opts.soldPrice, rules, stats);
+      const err = validateBid(currentPlayer, team, opts.soldPrice, rules, stats, teams, teamStats);
       if (err) return err;
 
       const prev = currentPlayer;
@@ -232,7 +233,13 @@ export function useAuctionState(
     const team = teams.find((t) => t.name === teamName);
     if (!team) return "Invalid team";
     const stats = teamStats.get(team.name) ?? { bought: 0, spent: 0, seniorCount: 0, goalkeeperCount: 0, players: [] };
-    if (stats.bought >= team.maxPlayers) return `${team.name} already has ${team.maxPlayers} players`;
+    const cap = effectiveMaxPlayers(team, teams, teamStats, rules);
+    if (stats.bought >= cap) {
+      if (cap < team.maxPlayers && rules.maxTeamsAtMaxSize) {
+        return `${team.name} is capped at ${cap} players — only ${rules.maxTeamsAtMaxSize} team(s) can have ${team.maxPlayers}`;
+      }
+      return `${team.name} already has ${cap} players`;
+    }
 
     setPlayers((ps) => {
       const updated = ps.map((p) =>

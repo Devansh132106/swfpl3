@@ -1,12 +1,15 @@
 import { useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import type { AuctionRules } from "@/config/auctionRules";
 import type { Player, Team, TeamStats } from "@/lib/auction/types";
+import { eligibleLotteryTeams, effectiveMaxPlayers } from "@/lib/auction/preparePlayers";
 
 interface Props {
   currentPlayer: Player | null;
   players: Player[];
   teams: Team[];
   teamStats: Map<string, TeamStats>;
+  rules: AuctionRules;
   onAssign: (playerId: string, teamName: string) => string | null;
 }
 
@@ -55,7 +58,7 @@ function rotationForSegment(index: number, total: number): number {
   return (360 - center) % 360;
 }
 
-export function LotteryWheel({ currentPlayer, players, teams, teamStats, onAssign }: Props) {
+export function LotteryWheel({ currentPlayer, players, teams, teamStats, rules, onAssign }: Props) {
   const remaining = useMemo(() => players.filter((p) => p.status === "AVAILABLE"), [players]);
   const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
@@ -63,8 +66,8 @@ export function LotteryWheel({ currentPlayer, players, teams, teamStats, onAssig
   const pendingRef = useRef<{ player: Player; team: Team } | null>(null);
 
   const eligibleTeams = useMemo(
-    () => teams.filter((t) => (teamStats.get(t.name)?.bought ?? 0) < t.maxPlayers),
-    [teams, teamStats],
+    () => eligibleLotteryTeams(teams, teamStats, rules),
+    [teams, teamStats, rules],
   );
 
   const spin = () => {
@@ -128,7 +131,9 @@ export function LotteryWheel({ currentPlayer, players, teams, teamStats, onAssig
           >
             <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} className="block">
               {teams.map((t, i) => {
-                const full = (teamStats.get(t.name)?.bought ?? 0) >= t.maxPlayers;
+                const full = (teamStats.get(t.name)?.bought ?? 0) >= (rules.maxTeamsAtMaxSize
+                  ? effectiveMaxPlayers(t, teams, teamStats, rules)
+                  : t.maxPlayers);
                 const { x, y, rotate } = labelPos(i, teams.length);
                 return (
                   <g key={t.id}>

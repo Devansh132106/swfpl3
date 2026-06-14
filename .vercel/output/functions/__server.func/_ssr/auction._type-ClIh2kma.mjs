@@ -1,8 +1,8 @@
 import { j as jsxRuntimeExports, r as reactExports } from "../_libs/react.mjs";
 import { L as Link } from "../_libs/tanstack__react-router.mjs";
 import { u as useQuery } from "../_libs/tanstack__react-query.mjs";
-import { R as Route$1, S as SHEETS, A as AUCTION_META, l as loadPlayers } from "./router-qSYNPIdB.mjs";
-import { e as eligibleTeams, G as GROUP_LABELS, g as getAuctionRules, a as getTeamsForAuction, r as resolveNextIndex, v as validateBid, f as findFirstInGroup, b as findFirstAvailable } from "./preparePlayers-DblabAjl.mjs";
+import { R as Route$1, S as SHEETS, A as AUCTION_META, l as loadPlayers } from "./router-BUU4DSRh.mjs";
+import { e as eligibleTeams, G as GROUP_LABELS, b as effectiveMaxPlayers, g as getAuctionRules, a as getTeamsForAuction, r as resolveNextIndex, v as validateBid, c as eligibleLotteryTeams, f as findFirstInGroup, d as findFirstAvailable } from "./preparePlayers-GF4jS8F6.mjs";
 import { u as utils, w as writeFileSync } from "../_libs/xlsx.mjs";
 import { e as extractDriveFileId, a as driveImageProxyUrl, d as driveImageDirectUrls } from "./drivePhoto-BlqciLZ2.mjs";
 import { F as FloatingParticles } from "./FloatingParticles-BsaonRbR.mjs";
@@ -21,7 +21,7 @@ import "async_hooks";
 import "stream";
 import "../_libs/isbot.mjs";
 import "../_libs/tanstack__query-core.mjs";
-import "./server-Bp5JtlTF.mjs";
+import "./server-DiBRIYzg.mjs";
 import "node:async_hooks";
 import "../_libs/h3-v2.mjs";
 import "../_libs/rou3.mjs";
@@ -132,8 +132,8 @@ function useAuctionState(auction, initialPlayers, teams, rules) {
       if (!currentPlayer) return "No player selected";
       const team = teams.find((t) => t.name === opts.teamName);
       if (!team) return "Select a team";
-      const stats = teamStats.get(team.name) ?? { bought: 0, spent: 0, seniorCount: 0, goalkeeperCount: 0 };
-      const err = validateBid(currentPlayer, team, opts.soldPrice, rules, stats);
+      const stats = teamStats.get(team.name) ?? { bought: 0, spent: 0, seniorCount: 0, goalkeeperCount: 0, players: [] };
+      const err = validateBid(currentPlayer, team, opts.soldPrice, rules, stats, teams, teamStats);
       if (err) return err;
       const prev = currentPlayer;
       const record = {
@@ -247,7 +247,13 @@ function useAuctionState(auction, initialPlayers, teams, rules) {
     const team = teams.find((t) => t.name === teamName);
     if (!team) return "Invalid team";
     const stats = teamStats.get(team.name) ?? { bought: 0 };
-    if (stats.bought >= team.maxPlayers) return `${team.name} already has ${team.maxPlayers} players`;
+    const cap = effectiveMaxPlayers(team, teams, teamStats, rules);
+    if (stats.bought >= cap) {
+      if (cap < team.maxPlayers && rules.maxTeamsAtMaxSize) {
+        return `${team.name} is capped at ${cap} players — only ${rules.maxTeamsAtMaxSize} team(s) can have ${team.maxPlayers}`;
+      }
+      return `${team.name} already has ${cap} players`;
+    }
     setPlayers((ps) => {
       const updated = ps.map(
         (p) => p.id === playerId ? { ...p, status: "SOLD", soldPrice: 0, team: teamName } : p
@@ -520,15 +526,15 @@ function rotationForSegment(index, total) {
   const center = index * seg + seg / 2;
   return (360 - center) % 360;
 }
-function LotteryWheel({ currentPlayer, players, teams, teamStats, onAssign }) {
+function LotteryWheel({ currentPlayer, players, teams, teamStats, rules, onAssign }) {
   const remaining = reactExports.useMemo(() => players.filter((p) => p.status === "AVAILABLE"), [players]);
   const [spinning, setSpinning] = reactExports.useState(false);
   const [rotation, setRotation] = reactExports.useState(0);
   const [result, setResult] = reactExports.useState(null);
   const pendingRef = reactExports.useRef(null);
   const eligibleTeams2 = reactExports.useMemo(
-    () => teams.filter((t) => (teamStats.get(t.name)?.bought ?? 0) < t.maxPlayers),
-    [teams, teamStats]
+    () => eligibleLotteryTeams(teams, teamStats, rules),
+    [teams, teamStats, rules]
   );
   const spin = () => {
     const player = currentPlayer ?? remaining[0];
@@ -577,7 +583,7 @@ function LotteryWheel({ currentPlayer, players, teams, teamStats, onAssign }) {
           style: { width: SIZE, height: SIZE },
           children: /* @__PURE__ */ jsxRuntimeExports.jsxs("svg", { width: SIZE, height: SIZE, viewBox: `0 0 ${SIZE} ${SIZE}`, className: "block", children: [
             teams.map((t, i) => {
-              const full = (teamStats.get(t.name)?.bought ?? 0) >= t.maxPlayers;
+              const full = (teamStats.get(t.name)?.bought ?? 0) >= (rules.maxTeamsAtMaxSize ? effectiveMaxPlayers(t, teams, teamStats, rules) : t.maxPlayers);
               const { x, y, rotate } = labelPos(i, teams.length);
               return /* @__PURE__ */ jsxRuntimeExports.jsxs("g", { children: [
                 /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -691,9 +697,10 @@ function formatPurse(amount) {
   }
   return `₹${amount.toLocaleString()}`;
 }
-function TeamCard({ team, bought, spent, hidePurse, onClick }) {
+function TeamCard({ team, bought, spent, slotMax, hidePurse, onClick }) {
   const needMore = Math.max(team.minPlayers - bought, 0);
   const purseLeft = Math.max(team.budget - spent, 0);
+  const maxSlots = slotMax ?? team.maxPlayers;
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(
     motion.button,
     {
@@ -730,7 +737,7 @@ function TeamCard({ team, bought, spent, hidePurse, onClick }) {
           ] })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `relative mt-3 grid gap-1.5 text-center ${hidePurse ? "grid-cols-2" : "grid-cols-3"}`, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(Pill, { label: "Slots", value: `${bought}/${team.maxPlayers}` }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Pill, { label: "Slots", value: `${bought}/${maxSlots}` }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(Pill, { label: "Need", value: needMore > 0 ? needMore : "✓" }),
           !hidePurse && /* @__PURE__ */ jsxRuntimeExports.jsx(Pill, { label: "Purse", value: formatPurse(purseLeft) })
         ] })
@@ -963,7 +970,7 @@ function AuctionFloor({
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3 xl:items-start", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: "xl:sticky xl:top-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(PlayerPortrait, { player: currentPlayer }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "space-y-4", children: [
-          rules.lotteryMode ? /* @__PURE__ */ jsxRuntimeExports.jsx(LotteryWheel, { currentPlayer, players, teams, teamStats, onAssign: assignLottery }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
+          rules.lotteryMode ? /* @__PURE__ */ jsxRuntimeExports.jsx(LotteryWheel, { currentPlayer, players, teams, teamStats, rules, onAssign: assignLottery }) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx(PlayerDetailsHeader, { player: currentPlayer }),
             /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass-strong rounded-2xl p-5", children: [
               /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "grid grid-cols-1 gap-3 md:grid-cols-2", children: [
@@ -1020,7 +1027,7 @@ function AuctionFloor({
               bought: 0,
               spent: 0
             };
-            return /* @__PURE__ */ jsxRuntimeExports.jsx(TeamCard, { team: t, bought: s.bought, spent: s.spent, hidePurse: rules.lotteryMode, onClick: () => setModalTeam(t) }, t.id);
+            return /* @__PURE__ */ jsxRuntimeExports.jsx(TeamCard, { team: t, bought: s.bought, spent: s.spent, slotMax: effectiveMaxPlayers(t, teams, teamStats, rules), hidePurse: rules.lotteryMode, onClick: () => setModalTeam(t) }, t.id);
           }) })
         ] })
       ] })
@@ -1034,14 +1041,18 @@ function RulesBanner({
 }) {
   if (rules.lotteryMode) {
     const playerRange2 = rules.minPlayers === rules.maxPlayers ? `${rules.maxPlayers} players` : `${rules.minPlayers}–${rules.maxPlayers} players each`;
+    const capNote2 = rules.maxTeamsAtMaxSize ? ` · only ${rules.maxTeamsAtMaxSize} team${rules.maxTeamsAtMaxSize > 1 ? "s" : ""} may have ${rules.maxPlayers} players` : "";
     return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-xl px-4 py-2 text-xs text-muted-foreground", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { className: "text-foreground", children: "Lottery mode" }),
       " — ",
       playerRange2,
-      ", randomly assigned via the wheel."
+      ", randomly assigned via the wheel",
+      capNote2,
+      "."
     ] });
   }
   const playerRange = rules.minPlayers === rules.maxPlayers ? `${rules.maxPlayers} players` : `${rules.minPlayers}–${rules.maxPlayers} players`;
+  const capNote = rules.maxTeamsAtMaxSize ? ` · only ${rules.maxTeamsAtMaxSize} teams may have ${rules.maxPlayers} players` : "";
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "glass rounded-xl px-4 py-2 text-xs text-muted-foreground", children: [
     "Min bid ",
     /* @__PURE__ */ jsxRuntimeExports.jsxs("strong", { className: "text-foreground", children: [
@@ -1057,6 +1068,7 @@ function RulesBanner({
     " · ",
     "Pick ",
     /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { className: "text-foreground", children: playerRange }),
+    capNote,
     rules.reopenUnsold && " · Unsold players re-auctioned until all sold"
   ] });
 }
