@@ -12,9 +12,11 @@ export interface AuctionRules {
   groups?: PlayerGroup[];
   /** Lottery wheel instead of bidding (U11, Female). */
   lotteryMode?: boolean;
-  /** How many teams may reach maxPlayers (e.g. U11: 1 team of 5; U15: 2 teams of 5). */
+  /** How many teams may reach maxPlayers (e.g. U11/U15: 2 teams of 5). */
   maxTeamsAtMaxSize?: number;
 }
+
+const BASE = 1000;
 
 /** Only these players belong in Group Senior — everyone else (non-GK) is Group Player. */
 export const SENIOR_PLAYER_NAMES = [
@@ -32,7 +34,7 @@ const LAKH = 100_000;
 
 export const AUCTION_RULES: Record<AuctionType, AuctionRules> = {
   open: {
-    basePrice: 5000,
+    basePrice: BASE,
     budget: LAKH,
     minPlayers: 5,
     maxPlayers: 6,
@@ -40,14 +42,14 @@ export const AUCTION_RULES: Record<AuctionType, AuctionRules> = {
     groups: ["goalkeeper", "player", "senior"],
   },
   veteran: {
-    basePrice: 5000,
+    basePrice: BASE,
     budget: LAKH,
     minPlayers: 5,
     maxPlayers: 6,
     reopenUnsold: true,
   },
   female: {
-    basePrice: 0,
+    basePrice: BASE,
     budget: LAKH,
     minPlayers: 5,
     maxPlayers: 6,
@@ -55,7 +57,7 @@ export const AUCTION_RULES: Record<AuctionType, AuctionRules> = {
     lotteryMode: true,
   },
   "kids-u14": {
-    basePrice: 5000,
+    basePrice: BASE,
     budget: LAKH,
     minPlayers: 4,
     maxPlayers: 5,
@@ -63,13 +65,13 @@ export const AUCTION_RULES: Record<AuctionType, AuctionRules> = {
     maxTeamsAtMaxSize: 2,
   },
   "kids-u11": {
-    basePrice: 0,
+    basePrice: BASE,
     budget: LAKH,
     minPlayers: 4,
     maxPlayers: 5,
     reopenUnsold: false,
     lotteryMode: true,
-    maxTeamsAtMaxSize: 1,
+    maxTeamsAtMaxSize: 2,
   },
 };
 

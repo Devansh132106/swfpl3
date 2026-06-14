@@ -32,7 +32,7 @@ export const Route = createFileRoute("/auction/$type")({
     const playersUrl = SHEETS[meta.sheetKey];
     if (!playersUrl) return;
     await context.queryClient.ensureQueryData({
-      queryKey: ["players", type, "v7"],
+      queryKey: ["players", type, "v8"],
       queryFn: () => loadPlayers({ data: { url: playersUrl, auctionType: type } }),
       staleTime: 5 * 60_000,
     });
@@ -78,7 +78,7 @@ function AuctionPage() {
   const rules = getAuctionRules(type);
 
   const playersQ = useQuery({
-    queryKey: ["players", type, "v7"],
+    queryKey: ["players", type, "v8"],
     queryFn: () => loadPlayers({ data: { url: playersUrl, auctionType: type } }),
     enabled: !!playersUrl,
     staleTime: 5 * 60_000,
